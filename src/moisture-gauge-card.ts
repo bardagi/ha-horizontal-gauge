@@ -74,8 +74,8 @@ function resolveGaugeStatus(
 
 function layoutRows(layout: GaugeLayout | undefined): number {
   if (layout === "compact") return 1;
-  if (layout === "simple") return 2;
-  return 3;
+  if (layout === "volvo") return 3;
+  return 2;
 }
 
 export class MoistureGaugeCard extends LitElement {

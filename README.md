@@ -39,7 +39,7 @@ name: Bjørkefiken
 ```yaml
 type: custom:moisture-gauge-card
 entity: sensor.plant_soil_moisture
-layout: volvo
+layout: simple
 name: Plant Name
 unit: "%"
 min: 0
@@ -59,7 +59,7 @@ double_tap_action:
 | Option              | Required | Default               | Description                                 |
 | ------------------- | -------- | --------------------- | ------------------------------------------- |
 | `entity`            | Yes      | —                     | Numeric sensor to display.                  |
-| `layout`            | No       | `volvo`               | `compact`, `simple`, or `volvo`.            |
+| `layout`            | No       | `simple`              | `compact`, `simple`, or `volvo`.            |
 | `name`              | No       | Entity name           | Card title.                                 |
 | `unit`              | No       | Entity unit, then `%` | Display unit. Set `""` to hide it.          |
 | `min`               | No       | `0`                   | Gauge minimum.                              |

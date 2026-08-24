@@ -9,7 +9,7 @@ export const DEFAULT_MIN = 0;
 export const DEFAULT_MAX = 100;
 export const DEFAULT_OPTIMAL: OptimalRange = { min: 40, max: 70 };
 export const DEFAULT_BUFFER = 5;
-export const DEFAULT_LAYOUT: GaugeLayout = "volvo";
+export const DEFAULT_LAYOUT: GaugeLayout = "simple";
 
 const GAUGE_LAYOUTS = new Set<GaugeLayout>(["compact", "simple", "volvo"]);
 

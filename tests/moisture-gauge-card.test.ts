@@ -84,7 +84,7 @@ describe("MoistureGaugeCard", () => {
 
   it("renders unavailable states neutrally instead of as zero", async () => {
     const card = await renderCard("unavailable");
-    const value = card.shadowRoot?.querySelector(".gauge-value");
+    const value = card.shadowRoot?.querySelector(".simple-value");
     const progress = card.shadowRoot?.querySelector(
       ".gauge-progress.unavailable",
     );
@@ -95,7 +95,7 @@ describe("MoistureGaugeCard", () => {
       card.shadowRoot?.querySelector(".gauge-pointer.unavailable"),
     ).not.toBeNull();
     expect(
-      card.shadowRoot?.querySelector(".state-problem")?.textContent,
+      card.shadowRoot?.querySelector(".simple-status")?.textContent,
     ).toContain("Unavailable");
   });
 
@@ -112,7 +112,7 @@ describe("MoistureGaugeCard", () => {
     await card.updateComplete;
 
     expect(
-      card.shadowRoot?.querySelector(".gauge-value")?.textContent?.trim(),
+      card.shadowRoot?.querySelector(".simple-value")?.textContent?.trim(),
     ).toBe("—");
     expect(
       card.shadowRoot?.querySelector(".state-problem")?.textContent,
@@ -124,7 +124,7 @@ describe("MoistureGaugeCard", () => {
     const progress = card.shadowRoot?.querySelector(".gauge-progress");
 
     expect(
-      card.shadowRoot?.querySelector(".gauge-value")?.textContent?.trim(),
+      card.shadowRoot?.querySelector(".simple-value")?.textContent?.trim(),
     ).toBe("150");
     expect(progress?.getAttribute("style")).toContain(
       "stroke-dasharray: 100 100",
@@ -142,7 +142,7 @@ describe("MoistureGaugeCard", () => {
     document.body.append(card);
     await card.updateComplete;
 
-    expect(card.shadowRoot?.querySelector(".gauge-unit")).toBeNull();
+    expect(card.shadowRoot?.querySelector(".simple-unit")).toBeNull();
   });
 
   it("exposes the visual editor schema and layout sizing", () => {
@@ -166,11 +166,11 @@ describe("MoistureGaugeCard", () => {
         },
       },
     });
-    expect(new MoistureGaugeCard().getCardSize()).toBe(3);
+    expect(new MoistureGaugeCard().getCardSize()).toBe(2);
     expect(new MoistureGaugeCard().getGridOptions()).toEqual({
-      rows: 3,
+      rows: 2,
       columns: 6,
-      min_rows: 3,
+      min_rows: 2,
       min_columns: 3,
     });
   });
@@ -305,7 +305,7 @@ describe("MoistureGaugeCard", () => {
   });
 
   it("renders a wide horizontal scale with aligned ticks and marker", async () => {
-    const card = await renderCard("50");
+    const card = await renderCard("50", "volvo");
     const svg = card.shadowRoot?.querySelector("svg");
     const indicator = card.shadowRoot?.querySelector(".gauge-indicator");
 

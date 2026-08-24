@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_BUFFER,
-  DEFAULT_LAYOUT,
   DEFAULT_MAX,
   DEFAULT_MIN,
   DEFAULT_OPTIMAL,
@@ -23,7 +22,7 @@ describe("normalizeConfig", () => {
     expect(config.max).toBe(DEFAULT_MAX);
     expect(config.optimal).toEqual(DEFAULT_OPTIMAL);
     expect(config.buffer).toBe(DEFAULT_BUFFER);
-    expect(config.layout).toBe(DEFAULT_LAYOUT);
+    expect(config.layout).toBe("simple");
     expect(config.tap_action).toEqual({ action: "more-info" });
     expect(config.hold_action).toEqual({ action: "none" });
     expect(config.double_tap_action).toEqual({ action: "none" });
