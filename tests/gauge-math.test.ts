@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  GAUGE_ARC_PATH,
-  GAUGE_CENTER,
+  GAUGE_TRACK_END_X,
+  GAUGE_TRACK_PATH,
+  GAUGE_TRACK_START_X,
+  GAUGE_TRACK_Y,
   GAUGE_VIEWBOX_HEIGHT,
   GAUGE_VIEWBOX_WIDTH,
-  gaugeAngle,
+  gaugePointerPath,
   getGaugeZone,
   normalizeGaugeValue,
   pointOnGauge,
@@ -13,36 +15,36 @@ import {
 
 describe("gauge geometry", () => {
   it.each([
-    [0, 135],
-    [0.25, 202.5],
-    [0.5, 270],
-    [0.75, 337.5],
-    [1, 405],
-  ])("maps %s progress to a shared %s degree angle", (progress, angle) => {
-    expect(gaugeAngle(progress)).toBe(angle);
+    [0, 48],
+    [0.25, 184],
+    [0.5, 320],
+    [0.75, 456],
+    [1, 592],
+  ])(
+    "maps %s progress to the shared horizontal x position %s",
+    (progress, x) => {
+      const position = pointOnGauge(progress);
 
-    const tick = pointOnGauge(progress, 60);
-    const radians = (angle * Math.PI) / 180;
-    const needleTip = {
-      x: GAUGE_CENTER + 60 * Math.cos(radians),
-      y: GAUGE_CENTER + 60 * Math.sin(radians),
-    };
-    expect(tick.x).toBeCloseTo(needleTip.x, 8);
-    expect(tick.y).toBeCloseTo(needleTip.y, 8);
-  });
+      expect(position).toEqual({ x, y: GAUGE_TRACK_Y });
+      expect(gaugePointerPath(progress)).toContain(`L ${x} 67 Z`);
+    },
+  );
 
-  it("keeps the outer ticks inside the viewbox", () => {
+  it("keeps ticks and pointers inside the viewbox", () => {
     for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
-      const point = pointOnGauge(progress, 74);
-      expect(point.x).toBeGreaterThanOrEqual(0);
-      expect(point.x).toBeLessThanOrEqual(GAUGE_VIEWBOX_WIDTH);
+      const point = pointOnGauge(progress);
+      expect(point.x - 8).toBeGreaterThanOrEqual(0);
+      expect(point.x + 8).toBeLessThanOrEqual(GAUGE_VIEWBOX_WIDTH);
       expect(point.y).toBeGreaterThanOrEqual(0);
       expect(point.y).toBeLessThanOrEqual(GAUGE_VIEWBOX_HEIGHT);
     }
   });
 
-  it("builds a 270 degree large-arc path", () => {
-    expect(GAUGE_ARC_PATH).toContain("A 70 70 0 1 1");
+  it("builds one left-to-right horizontal path", () => {
+    expect(GAUGE_TRACK_PATH).toBe(
+      `M ${GAUGE_TRACK_START_X} ${GAUGE_TRACK_Y} H ${GAUGE_TRACK_END_X}`,
+    );
+    expect(GAUGE_TRACK_PATH).not.toContain("A ");
   });
 
   it("clamps visual progress without changing input values", () => {

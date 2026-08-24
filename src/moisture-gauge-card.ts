@@ -1,11 +1,10 @@
-import { css, html, LitElement, nothing, type PropertyValues } from "lit";
+import { css, html, LitElement, nothing, svg, type PropertyValues } from "lit";
 
 import { normalizeConfig } from "./config";
 import {
-  GAUGE_ARC_PATH,
-  GAUGE_CENTER,
-  gaugeAngle,
+  GAUGE_TRACK_PATH,
   getGaugeZone,
+  gaugePointerPath,
   normalizeGaugeValue,
   pointOnGauge,
 } from "./gauge-math";
@@ -25,7 +24,8 @@ const CARD_TAG = "moisture-gauge-card";
 const CARD_TYPE = `custom:${CARD_TAG}` as const;
 const HOLD_DELAY_MS = 500;
 const DOUBLE_TAP_DELAY_MS = 250;
-const TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
+const TICKS = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1] as const;
+const MAJOR_TICKS = new Set([0, 0.25, 0.5, 0.75, 1]);
 
 interface CustomCardEntry {
   type: string;
@@ -47,6 +47,12 @@ declare global {
 
 function actionEnabled(action: { action?: string } | undefined): boolean {
   return Boolean(action?.action && action.action !== "none");
+}
+
+function formatScaleLabel(value: number, language: string): string {
+  return new Intl.NumberFormat(language, {
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export class MoistureGaugeCard extends LitElement {
@@ -238,6 +244,7 @@ export class MoistureGaugeCard extends LitElement {
         ? "unavailable"
         : getGaugeZone(value, this.config.optimal, this.config.buffer);
     const progressPercent = progress * 100;
+    const pointer = pointOnGauge(progress);
     const ariaValue = display.unit
       ? `${display.value} ${display.unit}`
       : display.value;
@@ -256,66 +263,87 @@ export class MoistureGaugeCard extends LitElement {
         @contextmenu=${this._onContextMenu}
       >
         <div class="card-content">
-          <h2 class="card-title">${name}</h2>
-          <div class="gauge-wrapper">
-            <svg
-              viewBox="0 0 200 160"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                class="gauge-arc"
-                d=${GAUGE_ARC_PATH}
-                pathLength="100"
-              ></path>
-              <path
-                class="gauge-progress ${zone}"
-                d=${GAUGE_ARC_PATH}
-                pathLength="100"
-                style=${`stroke-dasharray: ${progressPercent} 100; opacity: ${
-                  value === null || progressPercent === 0 ? 0 : 1
-                }`}
-              ></path>
-              ${TICKS.map((tick) => {
-                const inner = pointOnGauge(tick, 64);
-                const outer = pointOnGauge(tick, 74);
-                return html`<line
-                  class="gauge-tick"
-                  x1=${inner.x}
-                  y1=${inner.y}
-                  x2=${outer.x}
-                  y2=${outer.y}
-                ></line>`;
-              })}
-              <line
-                class="gauge-needle ${value === null ? "unavailable" : ""}"
-                x1=${GAUGE_CENTER}
-                y1=${GAUGE_CENTER}
-                x2=${GAUGE_CENTER + 60}
-                y2=${GAUGE_CENTER}
-                style=${`transform: rotate(${gaugeAngle(progress)}deg)`}
-              ></line>
-              <circle
-                class="gauge-center"
-                cx=${GAUGE_CENTER}
-                cy=${GAUGE_CENTER}
-                r="4"
-              ></circle>
-              <text class="gauge-value" x="100" y="117">${display.value}</text>
+          <div class="instrument">
+            <div class="scale-face">
+              <svg
+                viewBox="0 0 640 104"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  class="gauge-track"
+                  d=${GAUGE_TRACK_PATH}
+                  pathLength="100"
+                ></path>
+                <path
+                  class="gauge-progress ${zone}"
+                  d=${GAUGE_TRACK_PATH}
+                  pathLength="100"
+                  style=${`stroke-dasharray: ${progressPercent} 100; opacity: ${
+                    value === null || progressPercent === 0 ? 0 : 1
+                  }`}
+                ></path>
+                ${TICKS.map((tick) => {
+                  const position = pointOnGauge(tick);
+                  const major = MAJOR_TICKS.has(tick);
+                  const labelValue =
+                    this.config!.min +
+                    (this.config!.max - this.config!.min) * tick;
+                  return svg`<line
+                      class="gauge-tick ${major ? "major" : "minor"}"
+                      x1=${position.x}
+                      y1=${major ? 66 : 70}
+                      x2=${position.x}
+                      y2="87"
+                    ></line>
+                    ${
+                      major
+                        ? svg`<text
+                            class="scale-number"
+                            x=${position.x}
+                            y="43"
+                          >
+                            ${formatScaleLabel(labelValue, this.hass!.language)}
+                          </text>`
+                        : nothing
+                    }`;
+                })}
+                <line
+                  class="gauge-indicator ${zone} ${
+                    value === null ? "unavailable" : ""
+                  }"
+                  x1=${pointer.x}
+                  y1="56"
+                  x2=${pointer.x}
+                  y2="91"
+                ></line>
+                <path
+                  class="gauge-pointer ${zone} ${
+                    value === null ? "unavailable" : ""
+                  }"
+                  d=${gaugePointerPath(progress)}
+                ></path>
+              </svg>
+            </div>
+            <div class="instrument-lower">
+              <h2 class="card-title">${name}</h2>
+              <div class="readout">
+                <span class="gauge-value">${display.value}</span>
+                ${
+                  display.unit && value !== null
+                    ? html`<span class="gauge-unit">${display.unit}</span>`
+                    : nothing
+                }
+              </div>
               ${
-                display.unit
-                  ? html`<text class="gauge-unit" x="100" y="136">
-                      ${display.unit}
-                    </text>`
+                problem
+                  ? html`<div class="state-problem" role="status">
+                      ${problem}
+                    </div>`
                   : nothing
               }
-            </svg>
+            </div>
           </div>
-          ${
-            problem
-              ? html`<div class="state-problem" role="status">${problem}</div>`
-              : nothing
-          }
         </div>
       </ha-card>
     `;
@@ -408,7 +436,7 @@ export class MoistureGaugeCard extends LitElement {
   static override styles = css`
     :host {
       display: block;
-      --gauge-width: 200px;
+      --gauge-width: 640px;
       --gauge-height: auto;
     }
 
@@ -427,124 +455,185 @@ export class MoistureGaugeCard extends LitElement {
     }
 
     .card-content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 12px;
+      padding: 10px;
+    }
+
+    .instrument {
+      box-sizing: border-box;
+      width: min(100%, var(--gauge-width));
+      height: var(--gauge-height);
+      margin-inline: auto;
+      overflow: hidden;
+      border: 3px solid
+        var(--moisture-gauge-bezel-color, rgba(160, 164, 166, 0.9));
+      border-radius: 14px;
+      background: var(
+        --moisture-gauge-panel-color,
+        var(--secondary-background-color, #d8d4c8)
+      );
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.14);
+    }
+
+    .scale-face {
+      margin: 7px 7px 0;
+      overflow: hidden;
+      background: var(--moisture-gauge-face-color, #17191b);
+      clip-path: polygon(2.5% 0, 97.5% 0, 100% 100%, 0 100%);
     }
 
     .card-title {
-      max-width: 100%;
+      min-width: 0;
       margin: 0;
       overflow: hidden;
       color: var(--primary-text-color, #212121);
-      font-size: 14px;
-      font-weight: 500;
+      font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
+      font-size: 13px;
+      font-weight: 700;
       line-height: 20px;
-      text-align: center;
+      letter-spacing: 0.08em;
       text-overflow: ellipsis;
+      text-transform: uppercase;
       white-space: nowrap;
     }
 
-    .gauge-wrapper {
-      width: min(100%, var(--gauge-width));
-      height: var(--gauge-height);
-      aspect-ratio: 5 / 4;
+    .instrument-lower {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      align-items: center;
+      padding: 9px 13px 10px;
     }
 
     svg {
       display: block;
       width: 100%;
-      height: 100%;
+      aspect-ratio: 640 / 104;
     }
 
-    .gauge-arc,
+    .gauge-track,
     .gauge-progress {
       fill: none;
       stroke-width: 6;
-      stroke-linecap: round;
+      stroke-linecap: butt;
     }
 
-    .gauge-arc {
-      stroke: var(--divider-color, rgba(127, 127, 127, 0.3));
+    .gauge-track {
+      stroke: var(--moisture-gauge-dial-color, #f2f0e8);
+      opacity: 0.42;
     }
 
     .gauge-progress {
+      stroke: var(--gauge-zone-color);
       transition:
         stroke-dasharray 300ms ease-out,
         stroke 200ms ease-out;
     }
 
-    .gauge-progress.optimal {
-      stroke: var(--success-color, #43a047);
+    .optimal {
+      --gauge-zone-color: var(--success-color, #43a047);
     }
 
-    .gauge-progress.warning {
-      stroke: var(--warning-color, #ffa600);
+    .warning {
+      --gauge-zone-color: var(--warning-color, #ffa600);
     }
 
-    .gauge-progress.critical {
-      stroke: var(--error-color, #db4437);
+    .critical {
+      --gauge-zone-color: var(--error-color, #db4437);
     }
 
-    .gauge-progress.unavailable {
-      stroke: var(--disabled-text-color, #9e9e9e);
+    .unavailable {
+      --gauge-zone-color: var(--disabled-text-color, #9e9e9e);
     }
 
     .gauge-tick {
-      stroke: var(--divider-color, rgba(127, 127, 127, 0.3));
-      stroke-width: 1;
+      stroke: var(--moisture-gauge-dial-color, #f2f0e8);
     }
 
-    .gauge-needle {
-      transform-box: view-box;
-      transform-origin: 100px 100px;
-      fill: none;
-      stroke: var(--primary-text-color, #212121);
-      stroke-width: 2;
-      stroke-linecap: round;
-      transition:
-        transform 300ms ease-out,
-        opacity 200ms ease-out;
+    .gauge-tick.major {
+      stroke-width: 2.5;
     }
 
-    .gauge-needle.unavailable {
-      opacity: 0;
+    .gauge-tick.minor {
+      stroke-width: 1.5;
+      opacity: 0.78;
     }
 
-    .gauge-center {
-      fill: var(--primary-text-color, #212121);
-    }
-
-    .gauge-value,
-    .gauge-unit {
+    .scale-number {
+      fill: var(--moisture-gauge-dial-color, #f2f0e8);
+      font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 1px;
       text-anchor: middle;
     }
 
+    .gauge-indicator {
+      fill: none;
+      stroke: var(--gauge-zone-color);
+      stroke-width: 2.5;
+      transition:
+        x1 300ms ease-out,
+        x2 300ms ease-out,
+        opacity 200ms ease-out;
+    }
+
+    .gauge-pointer {
+      fill: var(--gauge-zone-color);
+      stroke: none;
+      transition:
+        d 300ms ease-out,
+        opacity 200ms ease-out;
+    }
+
+    .gauge-indicator.unavailable,
+    .gauge-pointer.unavailable {
+      opacity: 0;
+    }
+
+    .readout {
+      display: flex;
+      min-width: 92px;
+      min-height: 32px;
+      box-sizing: border-box;
+      align-items: baseline;
+      justify-content: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      background: var(--moisture-gauge-readout-color, #17191b);
+      box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.75);
+      color: var(--moisture-gauge-dial-color, #f2f0e8);
+      font-variant-numeric: tabular-nums;
+    }
+
     .gauge-value {
-      fill: var(--primary-text-color, #212121);
-      font-size: 30px;
-      font-weight: 300;
+      font-family: "Roboto Mono", "Courier New", monospace;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 24px;
     }
 
     .gauge-unit {
-      fill: var(--secondary-text-color, #727272);
-      font-size: 12px;
+      font-size: 11px;
+      font-weight: 700;
     }
 
     .state-problem {
+      grid-column: 1 / -1;
       max-width: 100%;
       color: var(--secondary-text-color, #727272);
       font-size: 12px;
       line-height: 16px;
-      text-align: center;
       overflow-wrap: anywhere;
     }
 
     @media (prefers-reduced-motion: reduce) {
       .gauge-progress,
-      .gauge-needle {
+      .gauge-indicator,
+      .gauge-pointer {
         transition: none;
       }
     }
@@ -560,7 +649,7 @@ if (!window.customCards.some((card) => card.type === CARD_TAG)) {
   window.customCards.push({
     type: CARD_TAG,
     name: "Moisture Gauge Card",
-    description: "A responsive 270° soil-moisture dial",
+    description: "A horizontal, vintage-inspired soil-moisture gauge",
     preview: true,
     documentationURL: "https://github.com/bardagi/ha-horizontal-gauge",
     getEntitySuggestion: (hass, entityId) => {

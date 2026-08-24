@@ -83,7 +83,7 @@ describe("MoistureGaugeCard", () => {
     expect(value?.textContent?.trim()).toBe("—");
     expect(progress?.getAttribute("style")).toContain("opacity: 0");
     expect(
-      card.shadowRoot?.querySelector(".gauge-needle.unavailable"),
+      card.shadowRoot?.querySelector(".gauge-pointer.unavailable"),
     ).not.toBeNull();
     expect(
       card.shadowRoot?.querySelector(".state-problem")?.textContent,
@@ -159,7 +159,26 @@ describe("MoistureGaugeCard", () => {
     expect(styles).toContain("var(--success-color");
     expect(styles).toContain("var(--warning-color");
     expect(styles).toContain("var(--error-color");
+    expect(styles).toContain("var(--moisture-gauge-face-color");
+    expect(styles).toContain("var(--moisture-gauge-bezel-color");
     expect(styles).toContain("prefers-reduced-motion");
+  });
+
+  it("renders a wide horizontal scale with aligned ticks and marker", async () => {
+    const card = await renderCard("50");
+    const svg = card.shadowRoot?.querySelector("svg");
+    const indicator = card.shadowRoot?.querySelector(".gauge-indicator");
+
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 640 104");
+    expect(card.shadowRoot?.querySelectorAll(".scale-number")).toHaveLength(5);
+    expect(card.shadowRoot?.querySelector(".gauge-tick")?.namespaceURI).toBe(
+      "http://www.w3.org/2000/svg",
+    );
+    expect(indicator?.getAttribute("x1")).toBe("320");
+    expect(indicator?.getAttribute("x2")).toBe("320");
+    expect(
+      card.shadowRoot?.querySelector(".gauge-pointer")?.getAttribute("d"),
+    ).toContain("L 320 67 Z");
   });
 
   it("suggests itself only for moisture sensors", () => {

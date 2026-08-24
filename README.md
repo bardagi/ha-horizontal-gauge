@@ -1,6 +1,6 @@
 # Moisture Gauge Card
 
-A responsive, theme-aware 270° soil-moisture dial for Home Assistant 2026.6 and newer. It supports graphical configuration, dashboard actions, Sections sizing, and offline operation after installation.
+A responsive, theme-aware horizontal soil-moisture gauge for Home Assistant 2026.6 and newer. Its wide linear scale and high-contrast instrument face are inspired by the classic Volvo Amazon speedometer. It supports graphical configuration, dashboard actions, Sections sizing, and offline operation after installation.
 
 ## Installation
 
@@ -71,7 +71,7 @@ double_tap_action:
 
 Values inside `optimal` are green. Values up to `buffer` below or above that range are yellow. Values outside the buffered range are red. Thresholds use the sensor's raw unit, even when `min` and `max` are customized.
 
-Values outside `min` and `max` are displayed unchanged while the needle is clamped to the nearest endpoint. Missing, unknown, unavailable, malformed, and infinite states display a neutral gauge and `—`; they are never interpreted as zero.
+Values outside `min` and `max` are displayed unchanged while the horizontal marker is clamped to the nearest endpoint. Missing, unknown, unavailable, malformed, and infinite states display a neutral gauge and `—`; they are never interpreted as zero.
 
 ## Multiple plants
 
@@ -132,8 +132,13 @@ The card uses Home Assistant's `--primary-text-color`, `--secondary-text-color`,
 
 It also exposes:
 
-- `--gauge-width`, default `200px`
+- `--gauge-width`, default `640px`
 - `--gauge-height`, default `auto`
+- `--moisture-gauge-face-color`, default `#17191b`
+- `--moisture-gauge-panel-color`, default theme secondary background
+- `--moisture-gauge-bezel-color`, default muted silver
+- `--moisture-gauge-dial-color`, default `#f2f0e8`
+- `--moisture-gauge-readout-color`, default `#17191b`
 
 These custom properties can be supplied globally by a Home Assistant theme. The gauge automatically shrinks to fit narrow cards.
 
