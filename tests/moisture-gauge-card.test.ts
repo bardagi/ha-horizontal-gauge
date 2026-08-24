@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MoistureGaugeCard } from "../src/moisture-gauge-card";
+import {
+  MoistureGaugeCard,
+  MoistureGaugeCardEditor,
+} from "../src/moisture-gauge-card";
 import type { HomeAssistant } from "../src/types";
 
 function entityState(value: string, attributes: Record<string, unknown> = {}) {
@@ -150,6 +153,50 @@ describe("MoistureGaugeCard", () => {
       columns: 6,
       min_rows: 3,
       min_columns: 3,
+    });
+  });
+
+  it("debounces visual editor changes so multi-digit maximums stay editable", async () => {
+    vi.useFakeTimers();
+    const editor = MoistureGaugeCard.getConfigElement();
+    const configChanged = vi.fn();
+    const baseConfig = {
+      type: "custom:moisture-gauge-card" as const,
+      entity: "sensor.plant_moisture",
+      min: 10,
+      max: 100,
+    };
+    editor.hass = hassStub();
+    editor.setConfig(baseConfig);
+    editor.addEventListener("config-changed", configChanged);
+    document.body.append(editor);
+    await editor.updateComplete;
+
+    const form = editor.shadowRoot?.querySelector("ha-form");
+    form?.dispatchEvent(
+      new CustomEvent("value-changed", {
+        bubbles: true,
+        composed: true,
+        detail: { value: { ...baseConfig, max: 2 } },
+      }),
+    );
+    vi.advanceTimersByTime(200);
+    form?.dispatchEvent(
+      new CustomEvent("value-changed", {
+        bubbles: true,
+        composed: true,
+        detail: { value: { ...baseConfig, max: 20 } },
+      }),
+    );
+
+    expect(editor).toBeInstanceOf(MoistureGaugeCardEditor);
+    expect(configChanged).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(299);
+    expect(configChanged).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(configChanged).toHaveBeenCalledOnce();
+    expect(configChanged.mock.calls[0]?.[0]).toMatchObject({
+      detail: { config: { min: 10, max: 20 } },
     });
   });
 

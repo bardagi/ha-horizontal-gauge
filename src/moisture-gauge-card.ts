@@ -21,7 +21,9 @@ import type {
 } from "./types";
 
 const CARD_TAG = "moisture-gauge-card";
+const EDITOR_TAG = "moisture-gauge-card-editor";
 const CARD_TYPE = `custom:${CARD_TAG}` as const;
+const EDITOR_DEBOUNCE_MS = 300;
 const HOLD_DELAY_MS = 500;
 const DOUBLE_TAP_DELAY_MS = 250;
 const TICKS = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1] as const;
@@ -37,6 +39,10 @@ interface CustomCardEntry {
     hass: HomeAssistant,
     entityId: string,
   ) => { config: MoistureGaugeCardConfig } | null;
+}
+
+interface ConfigFormLoader extends CustomElementConstructor {
+  getConfigElement?: () => unknown;
 }
 
 declare global {
@@ -160,6 +166,10 @@ export class MoistureGaugeCard extends LitElement {
         normalizeConfig(config);
       },
     };
+  }
+
+  public static getConfigElement(): MoistureGaugeCardEditor {
+    return document.createElement(EDITOR_TAG) as MoistureGaugeCardEditor;
   }
 
   public static getStubConfig(
@@ -640,8 +650,84 @@ export class MoistureGaugeCard extends LitElement {
   `;
 }
 
+export class MoistureGaugeCardEditor extends LitElement {
+  static override properties = {
+    hass: { attribute: false },
+    _config: { state: true },
+  };
+
+  public hass?: HomeAssistant;
+  private _config?: MoistureGaugeCardConfig;
+  private _configChangedTimer?: number;
+
+  public override connectedCallback(): void {
+    super.connectedCallback();
+    if (!customElements.get("ha-form")) {
+      const buttonCard = customElements.get("hui-button-card") as
+        ConfigFormLoader | undefined;
+      void buttonCard?.getConfigElement?.();
+    }
+  }
+
+  public setConfig(config: MoistureGaugeCardConfig): void {
+    this._clearConfigChangedTimer();
+    this._config = config;
+  }
+
+  public override disconnectedCallback(): void {
+    this._clearConfigChangedTimer();
+    super.disconnectedCallback();
+  }
+
+  protected override render() {
+    if (!this.hass || !this._config) return nothing;
+
+    const { schema, computeLabel, computeHelper } =
+      MoistureGaugeCard.getConfigForm();
+
+    return html`
+      <ha-form
+        .hass=${this.hass}
+        .data=${this._config}
+        .schema=${schema}
+        .computeLabel=${computeLabel}
+        .computeHelper=${computeHelper}
+        @value-changed=${this._onValueChanged}
+      ></ha-form>
+    `;
+  }
+
+  private _onValueChanged(
+    event: CustomEvent<{ value: MoistureGaugeCardConfig }>,
+  ): void {
+    this._config = event.detail.value;
+    this._clearConfigChangedTimer();
+    this._configChangedTimer = window.setTimeout(() => {
+      this._configChangedTimer = undefined;
+      this.dispatchEvent(
+        new CustomEvent("config-changed", {
+          bubbles: true,
+          composed: true,
+          detail: { config: this._config },
+        }),
+      );
+    }, EDITOR_DEBOUNCE_MS);
+  }
+
+  private _clearConfigChangedTimer(): void {
+    if (this._configChangedTimer !== undefined) {
+      window.clearTimeout(this._configChangedTimer);
+      this._configChangedTimer = undefined;
+    }
+  }
+}
+
 if (!customElements.get(CARD_TAG)) {
   customElements.define(CARD_TAG, MoistureGaugeCard);
+}
+
+if (!customElements.get(EDITOR_TAG)) {
+  customElements.define(EDITOR_TAG, MoistureGaugeCardEditor);
 }
 
 window.customCards = window.customCards ?? [];
