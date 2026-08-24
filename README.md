@@ -2,6 +2,8 @@
 
 A responsive, theme-aware horizontal soil-moisture gauge for Home Assistant 2026.6 and newer. Its wide linear scale and high-contrast instrument face are inspired by the classic Volvo Amazon speedometer. It supports graphical configuration, dashboard actions, Sections sizing, and offline operation after installation.
 
+![Compact, Simple, and Volvo layouts of the Moisture Gauge Card](images/screenshot.png)
+
 ## Installation
 
 ### HACS custom repository
