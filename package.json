@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "custom-card-helpers": "2.0.0",
-    "lit": "3.3.2"
+    "lit": "3.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -47,8 +47,8 @@
     "@rollup/plugin-typescript": "^12.1.4",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^16.5.0",
-    "jsdom": "^27.0.0",
+    "globals": "^17.11.0",
+    "jsdom": "^30.0.1",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.2",
     "rollup": "^4.50.0",
