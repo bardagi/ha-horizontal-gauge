@@ -1,0 +1,6 @@
+{
+  "name": "Moisture Gauge Card",
+  "render_readme": true,
+  "filename": "moisture-gauge-card.js",
+  "homeassistant": "2026.6.0"
+}
