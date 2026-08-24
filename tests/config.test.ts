@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_BUFFER,
+  DEFAULT_LAYOUT,
   DEFAULT_MAX,
   DEFAULT_MIN,
   DEFAULT_OPTIMAL,
@@ -22,6 +23,7 @@ describe("normalizeConfig", () => {
     expect(config.max).toBe(DEFAULT_MAX);
     expect(config.optimal).toEqual(DEFAULT_OPTIMAL);
     expect(config.buffer).toBe(DEFAULT_BUFFER);
+    expect(config.layout).toBe(DEFAULT_LAYOUT);
     expect(config.tap_action).toEqual({ action: "more-info" });
     expect(config.hold_action).toEqual({ action: "none" });
     expect(config.double_tap_action).toEqual({ action: "none" });
@@ -57,5 +59,18 @@ describe("normalizeConfig", () => {
 
   it("preserves an explicitly empty unit", () => {
     expect(normalizeConfig({ ...baseConfig, unit: "" }).unit).toBe("");
+  });
+
+  it.each(["compact", "simple", "volvo"] as const)(
+    "accepts the %s layout",
+    (layout) => {
+      expect(normalizeConfig({ ...baseConfig, layout }).layout).toBe(layout);
+    },
+  );
+
+  it("rejects an unsupported layout", () => {
+    expect(() =>
+      normalizeConfig({ ...baseConfig, layout: "dashboard" } as never),
+    ).toThrow("layout must be compact, simple, or volvo");
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  GaugeLayout,
   MoistureGaugeCardConfig,
   NormalizedMoistureGaugeCardConfig,
   OptimalRange,
@@ -8,6 +9,9 @@ export const DEFAULT_MIN = 0;
 export const DEFAULT_MAX = 100;
 export const DEFAULT_OPTIMAL: OptimalRange = { min: 40, max: 70 };
 export const DEFAULT_BUFFER = 5;
+export const DEFAULT_LAYOUT: GaugeLayout = "volvo";
+
+const GAUGE_LAYOUTS = new Set<GaugeLayout>(["compact", "simple", "volvo"]);
 
 function finiteNumber(name: string, value: unknown, fallback: number): number {
   const resolved = value ?? fallback;
@@ -31,6 +35,12 @@ export function normalizeConfig(
   }
   if (config.unit !== undefined && typeof config.unit !== "string") {
     throw new Error("unit must be a string");
+  }
+  if (
+    config.layout !== undefined &&
+    !GAUGE_LAYOUTS.has(config.layout as GaugeLayout)
+  ) {
+    throw new Error("layout must be compact, simple, or volvo");
   }
   if (
     config.optimal !== undefined &&
@@ -66,6 +76,7 @@ export function normalizeConfig(
   return {
     ...config,
     entity: config.entity.trim(),
+    layout: config.layout ?? DEFAULT_LAYOUT,
     min,
     max,
     optimal: { min: optimalMin, max: optimalMax },

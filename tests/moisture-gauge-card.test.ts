@@ -44,11 +44,15 @@ function hassStub(value = "50"): HomeAssistant {
   } as unknown as HomeAssistant;
 }
 
-async function renderCard(value = "50") {
+async function renderCard(
+  value = "50",
+  layout?: "compact" | "simple" | "volvo",
+) {
   const card = new MoistureGaugeCard();
   card.setConfig({
     type: "custom:moisture-gauge-card",
     entity: "sensor.plant_moisture",
+    layout,
   });
   card.hass = hassStub(value);
   document.body.append(card);
@@ -69,7 +73,9 @@ describe("MoistureGaugeCard", () => {
     expect(haCard).not.toBeNull();
     expect(haCard?.getAttribute("role")).toBe("button");
     expect(haCard?.getAttribute("tabindex")).toBe("0");
-    expect(haCard?.getAttribute("aria-label")).toBe("Kitchen Fern: 50 %");
+    expect(haCard?.getAttribute("aria-label")).toBe(
+      "Kitchen Fern: 50 %, Optimal",
+    );
     expect(
       card.shadowRoot?.querySelector(".gauge-progress.optimal"),
     ).not.toBeNull();
@@ -142,10 +148,23 @@ describe("MoistureGaugeCard", () => {
   it("exposes the visual editor schema and layout sizing", () => {
     const form = MoistureGaugeCard.getConfigForm();
     const optimal = form.schema.find((entry) => entry.name === "optimal");
+    const layout = form.schema.find((entry) => entry.name === "layout");
 
     expect(optimal).toMatchObject({
       type: "expandable",
       name: "optimal",
+    });
+    expect(layout).toMatchObject({
+      name: "layout",
+      selector: {
+        select: {
+          options: [
+            { value: "compact", label: "Compact" },
+            { value: "simple", label: "Simple" },
+            { value: "volvo", label: "Volvo" },
+          ],
+        },
+      },
     });
     expect(new MoistureGaugeCard().getCardSize()).toBe(3);
     expect(new MoistureGaugeCard().getGridOptions()).toEqual({
@@ -155,6 +174,80 @@ describe("MoistureGaugeCard", () => {
       min_columns: 3,
     });
   });
+
+  it("renders Compact as only a zone-colored line and arrow", async () => {
+    const card = await renderCard("35", "compact");
+
+    expect(card.shadowRoot?.querySelector(".minimal-gauge")).not.toBeNull();
+    expect(
+      card.shadowRoot?.querySelector(".gauge-progress.warning"),
+    ).not.toBeNull();
+    expect(card.shadowRoot?.querySelector(".instrument")).toBeNull();
+    expect(card.shadowRoot?.querySelector(".simple-header")).toBeNull();
+    expect(card.shadowRoot?.querySelector(".scale-number")).toBeNull();
+    expect(card.shadowRoot?.querySelector(".gauge-value")).toBeNull();
+    expect(
+      card.shadowRoot?.querySelector("ha-card")?.getAttribute("aria-label"),
+    ).toContain("Below optimal");
+    expect(card.getCardSize()).toBe(1);
+    expect(card.getGridOptions()).toMatchObject({ rows: 1, min_rows: 1 });
+  });
+
+  it.each([
+    ["50", "Optimal", "optimal"],
+    ["39", "Below optimal", "warning"],
+    ["71", "Above optimal", "warning"],
+    ["34", "Below optimal", "critical"],
+    ["76", "Above optimal", "critical"],
+    ["unavailable", "Unavailable", "unavailable"],
+  ])(
+    "renders Simple value %s with %s status",
+    async (value, expectedStatus, expectedZone) => {
+      const card = await renderCard(value, "simple");
+      const status = card.shadowRoot?.querySelector(".simple-status");
+
+      expect(card.shadowRoot?.querySelector(".simple-title")?.textContent).toBe(
+        "Kitchen Fern",
+      );
+      expect(card.shadowRoot?.querySelector(".simple-value")?.textContent).toBe(
+        value === "unavailable" ? "—" : value,
+      );
+      expect(status?.textContent).toBe(expectedStatus);
+      expect(status?.classList.contains(expectedZone)).toBe(true);
+      expect(
+        card.shadowRoot?.querySelector("ha-card")?.getAttribute("aria-label"),
+      ).toContain(expectedStatus);
+      expect(card.shadowRoot?.querySelector(".instrument")).toBeNull();
+      expect(card.getCardSize()).toBe(2);
+      expect(card.getGridOptions()).toMatchObject({ rows: 2, min_rows: 2 });
+    },
+  );
+
+  it.each([
+    ["40", "optimal", false],
+    ["70", "optimal", false],
+    ["35", "warning", true],
+    ["75", "warning", true],
+    ["34.99", "critical", true],
+    ["75.01", "critical", true],
+    ["unavailable", "unavailable", false],
+  ])(
+    "sets the Volvo moisture lamp for value %s",
+    async (value, expectedZone, illuminated) => {
+      const card = await renderCard(value, "volvo");
+      const lamp = card.shadowRoot?.querySelector(".moisture-lamp");
+
+      expect(lamp?.textContent?.trim().toLowerCase()).toBe("moisture");
+      expect(lamp?.classList.contains(expectedZone)).toBe(true);
+      expect(
+        illuminated &&
+          (lamp?.classList.contains("warning") ||
+            lamp?.classList.contains("critical")),
+      ).toBe(illuminated);
+      expect(card.shadowRoot?.querySelector(".instrument")).not.toBeNull();
+      expect(card.getCardSize()).toBe(3);
+    },
+  );
 
   it("debounces visual editor changes so multi-digit maximums stay editable", async () => {
     vi.useFakeTimers();

@@ -39,6 +39,7 @@ name: Bjørkefiken
 ```yaml
 type: custom:moisture-gauge-card
 entity: sensor.plant_soil_moisture
+layout: volvo
 name: Plant Name
 unit: "%"
 min: 0
@@ -58,6 +59,7 @@ double_tap_action:
 | Option              | Required | Default               | Description                                 |
 | ------------------- | -------- | --------------------- | ------------------------------------------- |
 | `entity`            | Yes      | —                     | Numeric sensor to display.                  |
+| `layout`            | No       | `volvo`               | `compact`, `simple`, or `volvo`.            |
 | `name`              | No       | Entity name           | Card title.                                 |
 | `unit`              | No       | Entity unit, then `%` | Display unit. Set `""` to hide it.          |
 | `min`               | No       | `0`                   | Gauge minimum.                              |
@@ -72,6 +74,14 @@ double_tap_action:
 Values inside `optimal` are green. Values up to `buffer` below or above that range are yellow. Values outside the buffered range are red. Thresholds use the sensor's raw unit, even when `min` and `max` are customized.
 
 Values outside `min` and `max` are displayed unchanged while the horizontal marker is clamped to the nearest endpoint. Missing, unknown, unavailable, malformed, and infinite states display a neutral gauge and `—`; they are never interpreted as zero.
+
+### Layouts
+
+- `compact` shows only the theme-aware horizontal line and zone-colored position arrow.
+- `simple` adds the entity name, formatted value, and an explicit `Optimal`, `Below optimal`, `Above optimal`, or `Unavailable` status.
+- `volvo` keeps the full vintage instrument styling. Its droplet-and-`MOISTURE` warning lamp is dim while the value is optimal or unavailable, amber in the warning buffer, and red in the critical zone.
+
+Compact, Simple, and Volvo report one, two, and three suggested dashboard rows respectively. All layouts support the same tap, hold, and double-tap actions.
 
 ## Multiple plants
 

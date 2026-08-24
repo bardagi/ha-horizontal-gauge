@@ -23,9 +23,12 @@ export interface OptimalRange {
   max: number;
 }
 
+export type GaugeLayout = "compact" | "simple" | "volvo";
+
 export interface MoistureGaugeCardConfig extends LovelaceCardConfig {
   type: "custom:moisture-gauge-card";
   entity: string;
+  layout?: GaugeLayout;
   name?: string;
   unit?: string;
   min?: number;
@@ -38,6 +41,7 @@ export interface MoistureGaugeCardConfig extends LovelaceCardConfig {
 }
 
 export interface NormalizedMoistureGaugeCardConfig extends MoistureGaugeCardConfig {
+  layout: GaugeLayout;
   min: number;
   max: number;
   optimal: OptimalRange;

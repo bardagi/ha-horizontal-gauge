@@ -15,6 +15,7 @@ import {
   resolveStateProblem,
 } from "./state";
 import type {
+  GaugeLayout,
   HomeAssistant,
   MoistureGaugeCardConfig,
   NormalizedMoistureGaugeCardConfig,
@@ -61,6 +62,22 @@ function formatScaleLabel(value: number, language: string): string {
   }).format(value);
 }
 
+function resolveGaugeStatus(
+  value: number | null,
+  optimal: { min: number; max: number },
+): "Optimal" | "Below optimal" | "Above optimal" | "Unavailable" {
+  if (value === null) return "Unavailable";
+  if (value < optimal.min) return "Below optimal";
+  if (value > optimal.max) return "Above optimal";
+  return "Optimal";
+}
+
+function layoutRows(layout: GaugeLayout | undefined): number {
+  if (layout === "compact") return 1;
+  if (layout === "simple") return 2;
+  return 3;
+}
+
 export class MoistureGaugeCard extends LitElement {
   static override properties = {
     hass: { attribute: false },
@@ -89,6 +106,19 @@ export class MoistureGaugeCard extends LitElement {
           name: "entity",
           required: true,
           selector: { entity: { filter: [{ domain: "sensor" }] } },
+        },
+        {
+          name: "layout",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "compact", label: "Compact" },
+                { value: "simple", label: "Simple" },
+                { value: "volvo", label: "Volvo" },
+              ],
+            },
+          },
         },
         {
           type: "grid",
@@ -145,6 +175,7 @@ export class MoistureGaugeCard extends LitElement {
       computeLabel: (schema: { name: string }) => {
         const labels: Record<string, string> = {
           entity: "Moisture sensor",
+          layout: "Layout",
           name: "Name",
           unit: "Unit",
           min: "Minimum",
@@ -199,14 +230,15 @@ export class MoistureGaugeCard extends LitElement {
   }
 
   public getCardSize(): number {
-    return 3;
+    return layoutRows(this.config?.layout);
   }
 
   public getGridOptions() {
+    const rows = layoutRows(this.config?.layout);
     return {
-      rows: 3,
+      rows,
       columns: 6,
-      min_rows: 3,
+      min_rows: rows,
       min_columns: 3,
     };
   }
@@ -255,14 +287,18 @@ export class MoistureGaugeCard extends LitElement {
         : getGaugeZone(value, this.config.optimal, this.config.buffer);
     const progressPercent = progress * 100;
     const pointer = pointOnGauge(progress);
+    const status = resolveGaugeStatus(value, this.config.optimal);
     const ariaValue = display.unit
       ? `${display.value} ${display.unit}`
       : display.value;
-    const ariaLabel = problem ? `${name}: ${problem}` : `${name}: ${ariaValue}`;
+    const ariaLabel = problem
+      ? `${name}: ${problem}`
+      : `${name}: ${ariaValue}, ${status}`;
+    const layout = this.config.layout;
 
     return html`
       <ha-card
-        class="interactive"
+        class="interactive layout-${layout}"
         role="button"
         tabindex="0"
         aria-label=${ariaLabel}
@@ -272,91 +308,205 @@ export class MoistureGaugeCard extends LitElement {
         @keydown=${this._onKeyDown}
         @contextmenu=${this._onContextMenu}
       >
-        <div class="card-content">
-          <div class="instrument">
-            <div class="scale-face">
-              <svg
-                viewBox="0 0 640 104"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  class="gauge-track"
-                  d=${GAUGE_TRACK_PATH}
-                  pathLength="100"
-                ></path>
-                <path
-                  class="gauge-progress ${zone}"
-                  d=${GAUGE_TRACK_PATH}
-                  pathLength="100"
-                  style=${`stroke-dasharray: ${progressPercent} 100; opacity: ${
-                    value === null || progressPercent === 0 ? 0 : 1
-                  }`}
-                ></path>
-                ${TICKS.map((tick) => {
-                  const position = pointOnGauge(tick);
-                  const major = MAJOR_TICKS.has(tick);
-                  const labelValue =
-                    this.config!.min +
-                    (this.config!.max - this.config!.min) * tick;
-                  return svg`<line
-                      class="gauge-tick ${major ? "major" : "minor"}"
-                      x1=${position.x}
-                      y1=${major ? 66 : 70}
-                      x2=${position.x}
-                      y2="87"
-                    ></line>
-                    ${
-                      major
-                        ? svg`<text
-                            class="scale-number"
-                            x=${position.x}
-                            y="43"
-                          >
-                            ${formatScaleLabel(labelValue, this.hass!.language)}
-                          </text>`
-                        : nothing
-                    }`;
-                })}
-                <line
-                  class="gauge-indicator ${zone} ${
-                    value === null ? "unavailable" : ""
-                  }"
-                  x1=${pointer.x}
-                  y1="56"
-                  x2=${pointer.x}
-                  y2="91"
-                ></line>
-                <path
-                  class="gauge-pointer ${zone} ${
-                    value === null ? "unavailable" : ""
-                  }"
-                  d=${gaugePointerPath(progress)}
-                ></path>
-              </svg>
-            </div>
-            <div class="instrument-lower">
-              <h2 class="card-title">${name}</h2>
-              <div class="readout">
-                <span class="gauge-value">${display.value}</span>
-                ${
-                  display.unit && value !== null
-                    ? html`<span class="gauge-unit">${display.unit}</span>`
-                    : nothing
-                }
-              </div>
-              ${
-                problem
-                  ? html`<div class="state-problem" role="status">
-                      ${problem}
-                    </div>`
-                  : nothing
-              }
-            </div>
-          </div>
-        </div>
+        ${
+          layout === "compact"
+            ? this._renderCompactGauge(progressPercent, pointer.x, zone, value)
+            : layout === "simple"
+              ? this._renderSimpleGauge(
+                  progressPercent,
+                  pointer.x,
+                  zone,
+                  value,
+                  name,
+                  display,
+                  status,
+                  problem,
+                )
+              : this._renderVolvoGauge(
+                  progressPercent,
+                  pointer.x,
+                  zone,
+                  value,
+                  name,
+                  display,
+                  problem,
+                )
+        }
       </ha-card>
     `;
+  }
+
+  private _renderCompactGauge(
+    progressPercent: number,
+    pointerX: number,
+    zone: string,
+    value: number | null,
+  ) {
+    return html`<div class="card-content compact-content">
+      ${this._renderMinimalGauge(progressPercent, pointerX, zone, value)}
+    </div>`;
+  }
+
+  private _renderSimpleGauge(
+    progressPercent: number,
+    pointerX: number,
+    zone: string,
+    value: number | null,
+    name: string,
+    display: { value: string; unit: string },
+    status: string,
+    problem: string | null,
+  ) {
+    return html`<div class="card-content simple-content">
+      <div class="simple-header">
+        <h2 class="simple-title">${name}</h2>
+        <div class="simple-readout">
+          <span class="simple-value">${display.value}</span>
+          ${
+            display.unit && value !== null
+              ? html`<span class="simple-unit">${display.unit}</span>`
+              : nothing
+          }
+        </div>
+        <div class="simple-status ${zone}" role="status">${status}</div>
+      </div>
+      ${this._renderMinimalGauge(progressPercent, pointerX, zone, value)}
+      ${
+        problem && problem !== status
+          ? html`<div class="state-problem simple-problem">${problem}</div>`
+          : nothing
+      }
+    </div>`;
+  }
+
+  private _renderMinimalGauge(
+    progressPercent: number,
+    pointerX: number,
+    zone: string,
+    value: number | null,
+  ) {
+    return html`<svg
+      class="minimal-gauge"
+      viewBox="0 46 640 48"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      ${this._renderTrackAndPointer(progressPercent, pointerX, zone, value)}
+    </svg>`;
+  }
+
+  private _renderVolvoGauge(
+    progressPercent: number,
+    pointerX: number,
+    zone: string,
+    value: number | null,
+    name: string,
+    display: { value: string; unit: string },
+    problem: string | null,
+  ) {
+    return html`<div class="card-content volvo-content">
+      <div class="instrument">
+        <div class="scale-face">
+          <svg
+            class="volvo-gauge"
+            viewBox="0 0 640 104"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            ${this._renderTrackAndPointer(
+              progressPercent,
+              pointerX,
+              zone,
+              value,
+              true,
+            )}
+          </svg>
+        </div>
+        <div class="instrument-lower">
+          <h2 class="card-title">${name}</h2>
+          ${this._renderMoistureLamp(zone)}
+          <div class="readout">
+            <span class="gauge-value">${display.value}</span>
+            ${
+              display.unit && value !== null
+                ? html`<span class="gauge-unit">${display.unit}</span>`
+                : nothing
+            }
+          </div>
+          ${
+            problem
+              ? html`<div class="state-problem" role="status">${problem}</div>`
+              : nothing
+          }
+        </div>
+      </div>
+    </div>`;
+  }
+
+  private _renderTrackAndPointer(
+    progressPercent: number,
+    pointerX: number,
+    zone: string,
+    value: number | null,
+    showTicks = false,
+  ) {
+    return svg`
+      <path class="gauge-track" d=${GAUGE_TRACK_PATH} pathLength="100"></path>
+      <path
+        class="gauge-progress ${zone}"
+        d=${GAUGE_TRACK_PATH}
+        pathLength="100"
+        style=${`stroke-dasharray: ${progressPercent} 100; opacity: ${
+          value === null || progressPercent === 0 ? 0 : 1
+        }`}
+      ></path>
+      ${
+        showTicks
+          ? TICKS.map((tick) => {
+              const position = pointOnGauge(tick);
+              const major = MAJOR_TICKS.has(tick);
+              const labelValue =
+                this.config!.min + (this.config!.max - this.config!.min) * tick;
+              return svg`<line
+                class="gauge-tick ${major ? "major" : "minor"}"
+                x1=${position.x}
+                y1=${major ? 66 : 70}
+                x2=${position.x}
+                y2="87"
+              ></line>
+              ${
+                major
+                  ? svg`<text class="scale-number" x=${position.x} y="43">
+                    ${formatScaleLabel(labelValue, this.hass!.language)}
+                  </text>`
+                  : nothing
+              }`;
+            })
+          : nothing
+      }
+      <line
+        class="gauge-indicator ${zone} ${value === null ? "unavailable" : ""}"
+        x1=${pointerX}
+        y1="56"
+        x2=${pointerX}
+        y2="91"
+      ></line>
+      <path
+        class="gauge-pointer ${zone} ${value === null ? "unavailable" : ""}"
+        d=${gaugePointerPath(progressPercent / 100)}
+      ></path>
+    `;
+  }
+
+  private _renderMoistureLamp(zone: string) {
+    return html`<div class="moisture-lamp ${zone}" aria-hidden="true">
+      <svg class="moisture-lamp-icon" viewBox="0 0 24 24">
+        <path
+          d="M12 2.5C9.8 6 5.5 10.4 5.5 15a6.5 6.5 0 0 0 13 0C18.5 10.4 14.2 6 12 2.5Z"
+        ></path>
+      </svg>
+      <span>Moisture</span>
+    </div>`;
   }
 
   private _onPointerDown(event: PointerEvent): void {
@@ -468,6 +618,86 @@ export class MoistureGaugeCard extends LitElement {
       padding: 10px;
     }
 
+    .compact-content {
+      padding: 8px 12px;
+    }
+
+    .simple-content {
+      padding: 10px 12px;
+    }
+
+    .minimal-gauge,
+    .simple-header {
+      box-sizing: border-box;
+      width: min(100%, var(--gauge-width));
+      margin-inline: auto;
+    }
+
+    .minimal-gauge {
+      display: block;
+      aspect-ratio: 640 / 48;
+    }
+
+    .simple-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 8px;
+      align-items: center;
+      padding-inline: 7.5%;
+    }
+
+    .simple-title {
+      min-width: 0;
+      margin: 0;
+      overflow: hidden;
+      color: var(--primary-text-color, #212121);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 24px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .simple-readout {
+      display: flex;
+      align-items: baseline;
+      gap: 3px;
+      color: var(--primary-text-color, #212121);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .simple-value {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .simple-unit {
+      color: var(--secondary-text-color, #727272);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .simple-status {
+      padding: 2px 7px;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      color: var(--gauge-zone-color);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 18px;
+      white-space: nowrap;
+    }
+
+    .simple-status.unavailable {
+      color: var(--disabled-text-color, #9e9e9e);
+    }
+
+    .simple-problem {
+      width: min(100%, var(--gauge-width));
+      margin: 2px auto 0;
+      padding-inline: 7.5%;
+    }
+
     .instrument {
       box-sizing: border-box;
       width: min(100%, var(--gauge-width));
@@ -510,13 +740,13 @@ export class MoistureGaugeCard extends LitElement {
 
     .instrument-lower {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       gap: 6px 12px;
       align-items: center;
       padding: 9px 13px 10px;
     }
 
-    svg {
+    .volvo-gauge {
       display: block;
       width: 100%;
       aspect-ratio: 640 / 104;
@@ -532,6 +762,11 @@ export class MoistureGaugeCard extends LitElement {
     .gauge-track {
       stroke: var(--moisture-gauge-dial-color, #f2f0e8);
       opacity: 0.42;
+    }
+
+    .minimal-gauge .gauge-track {
+      stroke: var(--divider-color, rgba(127, 127, 127, 0.45));
+      opacity: 1;
     }
 
     .gauge-progress {
@@ -597,6 +832,58 @@ export class MoistureGaugeCard extends LitElement {
         opacity 200ms ease-out;
     }
 
+    .moisture-lamp {
+      --moisture-lamp-color: var(--secondary-text-color, #727272);
+      display: flex;
+      min-height: 30px;
+      box-sizing: border-box;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 7px;
+      border: 1px solid var(--moisture-lamp-color);
+      border-radius: 3px;
+      background: var(--moisture-gauge-readout-color, #17191b);
+      color: var(--moisture-lamp-color);
+      font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      line-height: 12px;
+      opacity: 0.3;
+      text-transform: uppercase;
+      transition:
+        color 200ms ease-out,
+        border-color 200ms ease-out,
+        box-shadow 200ms ease-out,
+        opacity 200ms ease-out;
+    }
+
+    .moisture-lamp.warning {
+      --moisture-lamp-color: var(--warning-color, #ffa600);
+      box-shadow:
+        0 0 7px color-mix(in srgb, var(--moisture-lamp-color), transparent 35%),
+        inset 0 0 5px
+          color-mix(in srgb, var(--moisture-lamp-color), transparent 70%);
+      opacity: 1;
+    }
+
+    .moisture-lamp.critical {
+      --moisture-lamp-color: var(--error-color, #db4437);
+      box-shadow:
+        0 0 8px color-mix(in srgb, var(--moisture-lamp-color), transparent 25%),
+        inset 0 0 5px
+          color-mix(in srgb, var(--moisture-lamp-color), transparent 65%);
+      opacity: 1;
+    }
+
+    .moisture-lamp-icon {
+      display: block;
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      fill: currentColor;
+    }
+
     .gauge-indicator.unavailable,
     .gauge-pointer.unavailable {
       opacity: 0;
@@ -643,7 +930,8 @@ export class MoistureGaugeCard extends LitElement {
     @media (prefers-reduced-motion: reduce) {
       .gauge-progress,
       .gauge-indicator,
-      .gauge-pointer {
+      .gauge-pointer,
+      .moisture-lamp {
         transition: none;
       }
     }
