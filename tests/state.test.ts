@@ -90,7 +90,7 @@ describe("sensor state handling", () => {
     ).toBe("");
   });
 
-  it("falls back to percent without a configured or entity unit", () => {
+  it("does not invent a unit without a configured or entity unit", () => {
     const hass = hassStub();
     hass.formatEntityStateToParts = vi.fn(() => [
       { type: "value" as const, value: "42.5" },
@@ -102,6 +102,14 @@ describe("sensor state handling", () => {
         42.5,
         normalizeConfig(baseConfig),
       ).unit,
-    ).toBe("%");
+    ).toBe("");
+    expect(
+      resolveDisplayParts(
+        hass,
+        state("unavailable"),
+        null,
+        normalizeConfig(baseConfig),
+      ).unit,
+    ).toBe("");
   });
 });

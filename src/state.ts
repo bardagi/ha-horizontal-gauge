@@ -45,7 +45,7 @@ export function resolveDisplayParts(
   if (value === null || !state) {
     return {
       value: "—",
-      unit: config.unit !== undefined ? config.unit : (attributeUnit ?? "%"),
+      unit: config.unit !== undefined ? config.unit : (attributeUnit ?? ""),
     };
   }
 
@@ -66,7 +66,7 @@ export function resolveDisplayParts(
     unit:
       config.unit !== undefined
         ? config.unit
-        : formattedUnit || attributeUnit || "%",
+        : formattedUnit || attributeUnit || "",
   };
 }
 

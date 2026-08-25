@@ -28,7 +28,7 @@ The release bundle includes Lit and uses Home Assistant's native card-action eve
 
 The card is available in Home Assistant's card picker and visual editor, and self-suggests for any numeric `sensor.*` entity.
 
-> Upgrading from Moisture Gauge Card? Update `type: custom:moisture-gauge-card` to `type: custom:horizontal-gauge-card` — the card was renamed and the old type is no longer registered.
+> Upgrading from Moisture Gauge Card? Update `type: custom:moisture-gauge-card` to `type: custom:horizontal-gauge-card` — the old type is no longer registered. If you manage dashboard resources manually or in YAML, also replace `moisture-gauge-card.js` with `horizontal-gauge-card.js` in both the installed filename and resource URL. HACS updates storage-managed resource URLs automatically.
 
 ### Basic
 
@@ -64,23 +64,23 @@ double_tap_action:
   action: none
 ```
 
-| Option              | Required | Default               | Description                                                     |
-| ------------------- | -------- | --------------------- | --------------------------------------------------------------- |
-| `entity`            | Yes      | —                     | Numeric sensor to display.                                      |
-| `layout`            | No       | `simple`              | `compact`, `simple`, or `volvo`.                                |
-| `name`              | No       | Entity name           | Card title.                                                     |
-| `unit`              | No       | Entity unit, then `%` | Display unit. Set `""` to hide it.                              |
-| `min`               | No       | `0`                   | Gauge minimum.                                                  |
-| `max`               | No       | `100`                 | Gauge maximum. Must exceed `min`.                               |
-| `optimal.min`       | No       | `40`                  | Inclusive lower bound of the optimal range.                     |
-| `optimal.max`       | No       | `70`                  | Inclusive upper bound of the optimal range.                     |
-| `buffer`            | No       | `5`                   | Warning-zone width in the sensor's unit.                        |
-| `lamp.icon`         | No       | `mdi:circle`          | Volvo layout only: icon shown on the status lamp.               |
-| `lamp.label`        | No       | `""` (none)           | Volvo layout only: label shown while the value is in range.     |
-| `lamp.alert_label`  | No       | `""` (none)           | Volvo layout only: label shown while the value is out of range. |
-| `tap_action`        | No       | `more-info`           | Action performed on tap or Enter/Space.                         |
-| `hold_action`       | No       | `none`                | Action performed after holding for 500 ms.                      |
-| `double_tap_action` | No       | `none`                | Action performed on double tap.                                 |
+| Option              | Required | Default                | Description                                                     |
+| ------------------- | -------- | ---------------------- | --------------------------------------------------------------- |
+| `entity`            | Yes      | —                      | Numeric sensor to display.                                      |
+| `layout`            | No       | `simple`               | `compact`, `simple`, or `volvo`.                                |
+| `name`              | No       | Entity name            | Card title.                                                     |
+| `unit`              | No       | Entity unit, then none | Display unit. Set `""` to hide it.                              |
+| `min`               | No       | `0`                    | Gauge minimum.                                                  |
+| `max`               | No       | `100`                  | Gauge maximum. Must exceed `min`.                               |
+| `optimal.min`       | No       | `40`                   | Inclusive lower bound of the optimal range.                     |
+| `optimal.max`       | No       | `70`                   | Inclusive upper bound of the optimal range.                     |
+| `buffer`            | No       | `5`                    | Warning-zone width in the sensor's unit.                        |
+| `lamp.icon`         | No       | `mdi:circle`           | Volvo layout only: icon shown on the status lamp.               |
+| `lamp.label`        | No       | `""` (none)            | Volvo layout only: label shown while the value is in range.     |
+| `lamp.alert_label`  | No       | `""` (none)            | Volvo layout only: label shown while the value is out of range. |
+| `tap_action`        | No       | `more-info`            | Action performed on tap or Enter/Space.                         |
+| `hold_action`       | No       | `none`                 | Action performed after holding for 500 ms.                      |
+| `double_tap_action` | No       | `none`                 | Action performed on double tap.                                 |
 
 Values inside `optimal` are green. Values up to `buffer` below or above that range are yellow. Values outside the buffered range are red. Thresholds use the sensor's raw unit, even when `min` and `max` are customized.
 
