@@ -17,10 +17,18 @@ export function parseNumericState(state: HassState | undefined): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
+const fallbackFormatters = new Map<string, Intl.NumberFormat>();
+
 function fallbackNumberFormat(hass: HomeAssistant, value: number): string {
-  return new Intl.NumberFormat(hass.language || undefined, {
-    maximumFractionDigits: 3,
-  }).format(value);
+  const language = hass.language || "";
+  let formatter = fallbackFormatters.get(language);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(language || undefined, {
+      maximumFractionDigits: 3,
+    });
+    fallbackFormatters.set(language, formatter);
+  }
+  return formatter.format(value);
 }
 
 export function resolveDisplayParts(

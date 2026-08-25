@@ -56,10 +56,15 @@ function actionEnabled(action: { action?: string } | undefined): boolean {
   return Boolean(action?.action && action.action !== "none");
 }
 
+const scaleLabelFormatters = new Map<string, Intl.NumberFormat>();
+
 function formatScaleLabel(value: number, language: string): string {
-  return new Intl.NumberFormat(language, {
-    maximumFractionDigits: 2,
-  }).format(value);
+  let formatter = scaleLabelFormatters.get(language);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(language, { maximumFractionDigits: 2 });
+    scaleLabelFormatters.set(language, formatter);
+  }
+  return formatter.format(value);
 }
 
 function resolveGaugeStatus(
@@ -78,6 +83,117 @@ function layoutRows(layout: GaugeLayout | undefined): number {
   return 2;
 }
 
+function buildConfigForm() {
+  const actions = [
+    "more-info",
+    "navigate",
+    "url",
+    "perform-action",
+    "assist",
+    "none",
+  ];
+
+  return {
+    schema: [
+      {
+        name: "entity",
+        required: true,
+        selector: { entity: { filter: [{ domain: "sensor" }] } },
+      },
+      {
+        name: "layout",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "compact", label: "Compact" },
+              { value: "simple", label: "Simple" },
+              { value: "volvo", label: "Volvo" },
+            ],
+          },
+        },
+      },
+      {
+        type: "grid",
+        name: "",
+        schema: [
+          { name: "name", selector: { text: {} } },
+          { name: "unit", selector: { text: {} } },
+        ],
+      },
+      {
+        type: "grid",
+        name: "",
+        schema: [
+          { name: "min", selector: { number: { mode: "box" } } },
+          { name: "max", selector: { number: { mode: "box" } } },
+          { name: "buffer", selector: { number: { mode: "box", min: 0 } } },
+        ],
+      },
+      {
+        type: "expandable",
+        name: "optimal",
+        title: "Optimal range",
+        schema: [
+          { name: "min", selector: { number: { mode: "box" } } },
+          { name: "max", selector: { number: { mode: "box" } } },
+        ],
+      },
+      {
+        type: "expandable",
+        name: "interactions",
+        title: "Interactions",
+        flatten: true,
+        schema: [
+          {
+            name: "tap_action",
+            selector: {
+              ui_action: { actions, default_action: "more-info" },
+            },
+            context: { entity: "entity" },
+          },
+          {
+            name: "hold_action",
+            selector: { ui_action: { actions, default_action: "none" } },
+            context: { entity: "entity" },
+          },
+          {
+            name: "double_tap_action",
+            selector: { ui_action: { actions, default_action: "none" } },
+            context: { entity: "entity" },
+          },
+        ],
+      },
+    ],
+    computeLabel: (schema: { name: string }) => {
+      const labels: Record<string, string> = {
+        entity: "Moisture sensor",
+        layout: "Layout",
+        name: "Name",
+        unit: "Unit",
+        min: "Minimum",
+        max: "Maximum",
+        buffer: "Warning buffer",
+        tap_action: "Tap action",
+        hold_action: "Hold action",
+        double_tap_action: "Double-tap action",
+      };
+      return labels[schema.name];
+    },
+    computeHelper: (schema: { name: string }) => {
+      if (schema.name === "buffer") {
+        return "Warning-zone width in the sensor's unit";
+      }
+      return undefined;
+    },
+    assertConfig: (config: MoistureGaugeCardConfig) => {
+      normalizeConfig(config);
+    },
+  };
+}
+
+let cachedConfigForm: ReturnType<typeof buildConfigForm> | undefined;
+
 export class MoistureGaugeCard extends LitElement {
   static override properties = {
     hass: { attribute: false },
@@ -91,112 +207,10 @@ export class MoistureGaugeCard extends LitElement {
   private _holdTriggered = false;
 
   public static getConfigForm() {
-    const actions = [
-      "more-info",
-      "navigate",
-      "url",
-      "perform-action",
-      "assist",
-      "none",
-    ];
-
-    return {
-      schema: [
-        {
-          name: "entity",
-          required: true,
-          selector: { entity: { filter: [{ domain: "sensor" }] } },
-        },
-        {
-          name: "layout",
-          selector: {
-            select: {
-              mode: "dropdown",
-              options: [
-                { value: "compact", label: "Compact" },
-                { value: "simple", label: "Simple" },
-                { value: "volvo", label: "Volvo" },
-              ],
-            },
-          },
-        },
-        {
-          type: "grid",
-          name: "",
-          schema: [
-            { name: "name", selector: { text: {} } },
-            { name: "unit", selector: { text: {} } },
-          ],
-        },
-        {
-          type: "grid",
-          name: "",
-          schema: [
-            { name: "min", selector: { number: { mode: "box" } } },
-            { name: "max", selector: { number: { mode: "box" } } },
-            { name: "buffer", selector: { number: { mode: "box", min: 0 } } },
-          ],
-        },
-        {
-          type: "expandable",
-          name: "optimal",
-          title: "Optimal range",
-          schema: [
-            { name: "min", selector: { number: { mode: "box" } } },
-            { name: "max", selector: { number: { mode: "box" } } },
-          ],
-        },
-        {
-          type: "expandable",
-          name: "interactions",
-          title: "Interactions",
-          flatten: true,
-          schema: [
-            {
-              name: "tap_action",
-              selector: {
-                ui_action: { actions, default_action: "more-info" },
-              },
-              context: { entity: "entity" },
-            },
-            {
-              name: "hold_action",
-              selector: { ui_action: { actions, default_action: "none" } },
-              context: { entity: "entity" },
-            },
-            {
-              name: "double_tap_action",
-              selector: { ui_action: { actions, default_action: "none" } },
-              context: { entity: "entity" },
-            },
-          ],
-        },
-      ],
-      computeLabel: (schema: { name: string }) => {
-        const labels: Record<string, string> = {
-          entity: "Moisture sensor",
-          layout: "Layout",
-          name: "Name",
-          unit: "Unit",
-          min: "Minimum",
-          max: "Maximum",
-          buffer: "Warning buffer",
-          tap_action: "Tap action",
-          hold_action: "Hold action",
-          double_tap_action: "Double-tap action",
-        };
-        return labels[schema.name];
-      },
-      computeHelper: (schema: { name: string }) => {
-        if (schema.name === "buffer") {
-          return "Warning-zone width in the sensor's unit";
-        }
-        return undefined;
-      },
-      assertConfig: (config: MoistureGaugeCardConfig) => {
-        normalizeConfig(config);
-      },
-    };
+    if (!cachedConfigForm) {
+      cachedConfigForm = buildConfigForm();
+    }
+    return cachedConfigForm;
   }
 
   public static getConfigElement(): MoistureGaugeCardEditor {
