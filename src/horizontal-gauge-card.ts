@@ -977,7 +977,8 @@ export class HorizontalGaugeCardEditor extends LitElement {
     super.connectedCallback();
     if (!customElements.get("ha-form")) {
       const buttonCard = customElements.get("hui-button-card") as
-        ConfigFormLoader | undefined;
+        | ConfigFormLoader
+        | undefined;
       void buttonCard?.getConfigElement?.();
     }
   }

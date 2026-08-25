@@ -1,0 +1,6 @@
+{
+  "proseWrap": "preserve",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "ignorePatterns": ["dist/", "node_modules/", "coverage/", "package-lock.json"]
+}
