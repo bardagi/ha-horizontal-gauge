@@ -1,7 +1,8 @@
 import type {
   GaugeLayout,
-  MoistureGaugeCardConfig,
-  NormalizedMoistureGaugeCardConfig,
+  HorizontalGaugeCardConfig,
+  LampConfig,
+  NormalizedHorizontalGaugeCardConfig,
   OptimalRange,
 } from "./types";
 
@@ -10,6 +11,11 @@ export const DEFAULT_MAX = 100;
 export const DEFAULT_OPTIMAL: OptimalRange = { min: 40, max: 70 };
 export const DEFAULT_BUFFER = 5;
 export const DEFAULT_LAYOUT: GaugeLayout = "simple";
+export const DEFAULT_LAMP: LampConfig = {
+  icon: "mdi:circle",
+  label: "",
+  alert_label: "",
+};
 
 const GAUGE_LAYOUTS = new Set<GaugeLayout>(["compact", "simple", "volvo"]);
 
@@ -21,9 +27,17 @@ function finiteNumber(name: string, value: unknown, fallback: number): number {
   return resolved;
 }
 
+function lampString(name: string, value: unknown, fallback: string): string {
+  const resolved = value ?? fallback;
+  if (typeof resolved !== "string") {
+    throw new Error(`${name} must be a string`);
+  }
+  return resolved;
+}
+
 export function normalizeConfig(
-  config: MoistureGaugeCardConfig,
-): NormalizedMoistureGaugeCardConfig {
+  config: HorizontalGaugeCardConfig,
+): NormalizedHorizontalGaugeCardConfig {
   if (!config || typeof config !== "object") {
     throw new Error("Card configuration is required");
   }
@@ -48,6 +62,12 @@ export function normalizeConfig(
   ) {
     throw new Error("optimal must contain min and max values");
   }
+  if (
+    config.lamp !== undefined &&
+    (config.lamp === null || typeof config.lamp !== "object")
+  ) {
+    throw new Error("lamp must be an object");
+  }
 
   const min = finiteNumber("min", config.min, DEFAULT_MIN);
   const max = finiteNumber("max", config.max, DEFAULT_MAX);
@@ -62,6 +82,21 @@ export function normalizeConfig(
     DEFAULT_OPTIMAL.max,
   );
   const buffer = finiteNumber("buffer", config.buffer, DEFAULT_BUFFER);
+  const lampIcon = lampString(
+    "lamp.icon",
+    config.lamp?.icon,
+    DEFAULT_LAMP.icon,
+  );
+  const lampLabel = lampString(
+    "lamp.label",
+    config.lamp?.label,
+    DEFAULT_LAMP.label,
+  );
+  const lampAlertLabel = lampString(
+    "lamp.alert_label",
+    config.lamp?.alert_label,
+    DEFAULT_LAMP.alert_label,
+  );
 
   if (min >= max) {
     throw new Error("min must be less than max");
@@ -81,6 +116,7 @@ export function normalizeConfig(
     max,
     optimal: { min: optimalMin, max: optimalMax },
     buffer,
+    lamp: { icon: lampIcon, label: lampLabel, alert_label: lampAlertLabel },
     tap_action: config.tap_action ?? { action: "more-info" },
     hold_action: config.hold_action ?? { action: "none" },
     double_tap_action: config.double_tap_action ?? { action: "none" },

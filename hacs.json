@@ -1,6 +1,6 @@
 {
-  "name": "Moisture Gauge Card",
+  "name": "Horizontal Gauge Card",
   "render_readme": true,
-  "filename": "moisture-gauge-card.js",
+  "filename": "horizontal-gauge-card.js",
   "homeassistant": "2026.6.0"
 }

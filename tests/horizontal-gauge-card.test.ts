@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  MoistureGaugeCard,
-  MoistureGaugeCardEditor,
-} from "../src/moisture-gauge-card";
+  HorizontalGaugeCard,
+  HorizontalGaugeCardEditor,
+} from "../src/horizontal-gauge-card";
 import type { HomeAssistant } from "../src/types";
 
 function entityState(value: string, attributes: Record<string, unknown> = {}) {
   return {
-    entity_id: "sensor.plant_moisture",
+    entity_id: "sensor.test_sensor",
     state: value,
     attributes,
     context: { id: "context", parent_id: null, user_id: null },
@@ -20,12 +20,11 @@ function entityState(value: string, attributes: Record<string, unknown> = {}) {
 
 function hassStub(value = "50"): HomeAssistant {
   const state = entityState(value, {
-    device_class: "moisture",
-    friendly_name: "Kitchen Fern",
+    friendly_name: "Kitchen Sensor",
     unit_of_measurement: "%",
   });
   return {
-    states: { "sensor.plant_moisture": state },
+    states: { "sensor.test_sensor": state },
     entities: {},
     language: "en",
     formatEntityStateToParts: vi.fn((stateObject) => [
@@ -48,10 +47,10 @@ async function renderCard(
   value = "50",
   layout?: "compact" | "simple" | "volvo",
 ) {
-  const card = new MoistureGaugeCard();
+  const card = new HorizontalGaugeCard();
   card.setConfig({
-    type: "custom:moisture-gauge-card",
-    entity: "sensor.plant_moisture",
+    type: "custom:horizontal-gauge-card",
+    entity: "sensor.test_sensor",
     layout,
   });
   card.hass = hassStub(value);
@@ -65,7 +64,7 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("MoistureGaugeCard", () => {
+describe("HorizontalGaugeCard", () => {
   it("renders a standard, accessible Home Assistant card", async () => {
     const card = await renderCard("50");
     const haCard = card.shadowRoot?.querySelector("ha-card");
@@ -74,7 +73,7 @@ describe("MoistureGaugeCard", () => {
     expect(haCard?.getAttribute("role")).toBe("button");
     expect(haCard?.getAttribute("tabindex")).toBe("0");
     expect(haCard?.getAttribute("aria-label")).toBe(
-      "Kitchen Fern: 50 %, Optimal",
+      "Kitchen Sensor: 50 %, Optimal",
     );
     expect(
       card.shadowRoot?.querySelector(".gauge-progress.optimal"),
@@ -100,12 +99,12 @@ describe("MoistureGaugeCard", () => {
   });
 
   it("renders a missing entity as a neutral error", async () => {
-    const card = new MoistureGaugeCard();
+    const card = new HorizontalGaugeCard();
     const hass = hassStub();
     hass.states = {};
     card.setConfig({
-      type: "custom:moisture-gauge-card",
-      entity: "sensor.missing_moisture",
+      type: "custom:horizontal-gauge-card",
+      entity: "sensor.missing_sensor",
     });
     card.hass = hass;
     document.body.append(card);
@@ -132,10 +131,10 @@ describe("MoistureGaugeCard", () => {
   });
 
   it("suppresses the unit when configured with an empty string", async () => {
-    const card = new MoistureGaugeCard();
+    const card = new HorizontalGaugeCard();
     card.setConfig({
-      type: "custom:moisture-gauge-card",
-      entity: "sensor.plant_moisture",
+      type: "custom:horizontal-gauge-card",
+      entity: "sensor.test_sensor",
       unit: "",
     });
     card.hass = hassStub("50");
@@ -146,13 +145,18 @@ describe("MoistureGaugeCard", () => {
   });
 
   it("exposes the visual editor schema and layout sizing", () => {
-    const form = MoistureGaugeCard.getConfigForm();
+    const form = HorizontalGaugeCard.getConfigForm();
     const optimal = form.schema.find((entry) => entry.name === "optimal");
+    const lamp = form.schema.find((entry) => entry.name === "lamp");
     const layout = form.schema.find((entry) => entry.name === "layout");
 
     expect(optimal).toMatchObject({
       type: "expandable",
       name: "optimal",
+    });
+    expect(lamp).toMatchObject({
+      type: "expandable",
+      name: "lamp",
     });
     expect(layout).toMatchObject({
       name: "layout",
@@ -166,8 +170,8 @@ describe("MoistureGaugeCard", () => {
         },
       },
     });
-    expect(new MoistureGaugeCard().getCardSize()).toBe(2);
-    expect(new MoistureGaugeCard().getGridOptions()).toEqual({
+    expect(new HorizontalGaugeCard().getCardSize()).toBe(2);
+    expect(new HorizontalGaugeCard().getGridOptions()).toEqual({
       rows: 2,
       columns: 6,
       min_rows: 2,
@@ -207,7 +211,7 @@ describe("MoistureGaugeCard", () => {
       const status = card.shadowRoot?.querySelector(".simple-status");
 
       expect(card.shadowRoot?.querySelector(".simple-title")?.textContent).toBe(
-        "Kitchen Fern",
+        "Kitchen Sensor",
       );
       expect(card.shadowRoot?.querySelector(".simple-value")?.textContent).toBe(
         value === "unavailable" ? "—" : value,
@@ -232,12 +236,17 @@ describe("MoistureGaugeCard", () => {
     ["75.01", "critical", true],
     ["unavailable", "unavailable", false],
   ])(
-    "sets the Volvo moisture lamp for value %s",
+    "sets the Volvo status lamp for value %s",
     async (value, expectedZone, illuminated) => {
       const card = await renderCard(value, "volvo");
-      const lamp = card.shadowRoot?.querySelector(".moisture-lamp");
+      const lamp = card.shadowRoot?.querySelector(".status-lamp");
+      const icon = card.shadowRoot?.querySelector(".status-lamp-icon");
 
-      expect(lamp?.textContent?.trim().toLowerCase()).toBe("moisture");
+      expect(icon?.tagName).toBe("HA-ICON");
+      expect((icon as HTMLElement & { icon?: string })?.icon).toBe(
+        "mdi:circle",
+      );
+      expect(lamp?.querySelector("span")).toBeNull();
       expect(lamp?.classList.contains(expectedZone)).toBe(true);
       expect(
         illuminated &&
@@ -249,13 +258,42 @@ describe("MoistureGaugeCard", () => {
     },
   );
 
+  it.each([
+    ["50", "In range"],
+    ["35", "Out of range"],
+  ])(
+    "uses the configured status lamp icon and label for value %s",
+    async (value, expectedLabel) => {
+      const card = new HorizontalGaugeCard();
+      card.setConfig({
+        type: "custom:horizontal-gauge-card",
+        entity: "sensor.test_sensor",
+        layout: "volvo",
+        lamp: {
+          icon: "mdi:water",
+          label: "In range",
+          alert_label: "Out of range",
+        },
+      });
+      card.hass = hassStub(value);
+      document.body.append(card);
+      await card.updateComplete;
+
+      const icon = card.shadowRoot?.querySelector(".status-lamp-icon");
+      const label = card.shadowRoot?.querySelector(".status-lamp span");
+
+      expect((icon as HTMLElement & { icon?: string })?.icon).toBe("mdi:water");
+      expect(label?.textContent).toBe(expectedLabel);
+    },
+  );
+
   it("debounces visual editor changes so multi-digit maximums stay editable", async () => {
     vi.useFakeTimers();
-    const editor = MoistureGaugeCard.getConfigElement();
+    const editor = HorizontalGaugeCard.getConfigElement();
     const configChanged = vi.fn();
     const baseConfig = {
-      type: "custom:moisture-gauge-card" as const,
-      entity: "sensor.plant_moisture",
+      type: "custom:horizontal-gauge-card" as const,
+      entity: "sensor.test_sensor",
       min: 10,
       max: 100,
     };
@@ -282,7 +320,7 @@ describe("MoistureGaugeCard", () => {
       }),
     );
 
-    expect(editor).toBeInstanceOf(MoistureGaugeCardEditor);
+    expect(editor).toBeInstanceOf(HorizontalGaugeCardEditor);
     expect(configChanged).not.toHaveBeenCalled();
     vi.advanceTimersByTime(299);
     expect(configChanged).not.toHaveBeenCalled();
@@ -294,13 +332,13 @@ describe("MoistureGaugeCard", () => {
   });
 
   it("uses Home Assistant theme variables and reduced-motion styling", () => {
-    const styles = String(MoistureGaugeCard.styles);
+    const styles = String(HorizontalGaugeCard.styles);
 
     expect(styles).toContain("var(--success-color");
     expect(styles).toContain("var(--warning-color");
     expect(styles).toContain("var(--error-color");
-    expect(styles).toContain("var(--moisture-gauge-face-color");
-    expect(styles).toContain("var(--moisture-gauge-bezel-color");
+    expect(styles).toContain("var(--gauge-face-color");
+    expect(styles).toContain("var(--gauge-bezel-color");
     expect(styles).toContain("prefers-reduced-motion");
   });
 
@@ -321,30 +359,34 @@ describe("MoistureGaugeCard", () => {
     ).toContain("L 320 67 Z");
   });
 
-  it("suggests itself only for moisture sensors", () => {
+  it("suggests itself for any numeric sensor", () => {
     const metadata = window.customCards?.find(
-      (entry) => entry.type === "moisture-gauge-card",
+      (entry) => entry.type === "horizontal-gauge-card",
     );
     const hass = hassStub();
+    hass.states["sensor.non_numeric"] = entityState("on");
 
-    expect(
-      metadata?.getEntitySuggestion?.(hass, "sensor.plant_moisture"),
-    ).toEqual({
-      config: {
-        type: "custom:moisture-gauge-card",
-        entity: "sensor.plant_moisture",
+    expect(metadata?.getEntitySuggestion?.(hass, "sensor.test_sensor")).toEqual(
+      {
+        config: {
+          type: "custom:horizontal-gauge-card",
+          entity: "sensor.test_sensor",
+        },
       },
-    });
+    );
     expect(metadata?.getEntitySuggestion?.(hass, "light.kitchen")).toBeNull();
+    expect(
+      metadata?.getEntitySuggestion?.(hass, "sensor.non_numeric"),
+    ).toBeNull();
   });
 
   it("runs the configured tap action from the keyboard", async () => {
-    const card = new MoistureGaugeCard();
+    const card = new HorizontalGaugeCard();
     const hass = hassStub("50");
     const actionHandler = vi.fn();
     card.setConfig({
-      type: "custom:moisture-gauge-card",
-      entity: "sensor.plant_moisture",
+      type: "custom:horizontal-gauge-card",
+      entity: "sensor.test_sensor",
       tap_action: { action: "toggle" },
     });
     card.hass = hass;
@@ -365,7 +407,7 @@ describe("MoistureGaugeCard", () => {
       detail: {
         action: "tap",
         config: {
-          entity: "sensor.plant_moisture",
+          entity: "sensor.test_sensor",
           tap_action: { action: "toggle" },
         },
       },
@@ -374,11 +416,11 @@ describe("MoistureGaugeCard", () => {
 
   it("distinguishes double tap from a single tap", async () => {
     vi.useFakeTimers();
-    const card = new MoistureGaugeCard();
+    const card = new HorizontalGaugeCard();
     const actionHandler = vi.fn();
     card.setConfig({
-      type: "custom:moisture-gauge-card",
-      entity: "sensor.plant_moisture",
+      type: "custom:horizontal-gauge-card",
+      entity: "sensor.test_sensor",
       double_tap_action: { action: "more-info" },
     });
     card.hass = hassStub();
@@ -406,11 +448,11 @@ describe("MoistureGaugeCard", () => {
 
   it("fires hold without also firing tap", async () => {
     vi.useFakeTimers();
-    const card = new MoistureGaugeCard();
+    const card = new HorizontalGaugeCard();
     const actionHandler = vi.fn();
     card.setConfig({
-      type: "custom:moisture-gauge-card",
-      entity: "sensor.plant_moisture",
+      type: "custom:horizontal-gauge-card",
+      entity: "sensor.test_sensor",
       hold_action: { action: "more-info" },
     });
     card.hass = hassStub();

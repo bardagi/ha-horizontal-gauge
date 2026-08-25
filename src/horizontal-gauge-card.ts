@@ -17,12 +17,12 @@ import {
 import type {
   GaugeLayout,
   HomeAssistant,
-  MoistureGaugeCardConfig,
-  NormalizedMoistureGaugeCardConfig,
+  HorizontalGaugeCardConfig,
+  NormalizedHorizontalGaugeCardConfig,
 } from "./types";
 
-const CARD_TAG = "moisture-gauge-card";
-const EDITOR_TAG = "moisture-gauge-card-editor";
+const CARD_TAG = "horizontal-gauge-card";
+const EDITOR_TAG = "horizontal-gauge-card-editor";
 const CARD_TYPE = `custom:${CARD_TAG}` as const;
 const EDITOR_DEBOUNCE_MS = 300;
 const HOLD_DELAY_MS = 500;
@@ -39,7 +39,7 @@ interface CustomCardEntry {
   getEntitySuggestion?: (
     hass: HomeAssistant,
     entityId: string,
-  ) => { config: MoistureGaugeCardConfig } | null;
+  ) => { config: HorizontalGaugeCardConfig } | null;
 }
 
 interface ConfigFormLoader extends CustomElementConstructor {
@@ -141,6 +141,16 @@ function buildConfigForm() {
       },
       {
         type: "expandable",
+        name: "lamp",
+        title: "Status lamp",
+        schema: [
+          { name: "icon", selector: { icon: {} } },
+          { name: "label", selector: { text: {} } },
+          { name: "alert_label", selector: { text: {} } },
+        ],
+      },
+      {
+        type: "expandable",
         name: "interactions",
         title: "Interactions",
         flatten: true,
@@ -167,13 +177,16 @@ function buildConfigForm() {
     ],
     computeLabel: (schema: { name: string }) => {
       const labels: Record<string, string> = {
-        entity: "Moisture sensor",
+        entity: "Entity",
         layout: "Layout",
         name: "Name",
         unit: "Unit",
         min: "Minimum",
         max: "Maximum",
         buffer: "Warning buffer",
+        icon: "Icon",
+        label: "Label when in range",
+        alert_label: "Label when out of range",
         tap_action: "Tap action",
         hold_action: "Hold action",
         double_tap_action: "Double-tap action",
@@ -184,9 +197,15 @@ function buildConfigForm() {
       if (schema.name === "buffer") {
         return "Warning-zone width in the sensor's unit";
       }
+      if (schema.name === "label") {
+        return "Shown on the Volvo layout's status lamp while the value is inside the optimal range (or unavailable)";
+      }
+      if (schema.name === "alert_label") {
+        return "Shown on the Volvo layout's status lamp while the value is in the warning or critical zone";
+      }
       return undefined;
     },
-    assertConfig: (config: MoistureGaugeCardConfig) => {
+    assertConfig: (config: HorizontalGaugeCardConfig) => {
       normalizeConfig(config);
     },
   };
@@ -194,14 +213,14 @@ function buildConfigForm() {
 
 let cachedConfigForm: ReturnType<typeof buildConfigForm> | undefined;
 
-export class MoistureGaugeCard extends LitElement {
+export class HorizontalGaugeCard extends LitElement {
   static override properties = {
     hass: { attribute: false },
     config: { state: true },
   };
 
   public hass?: HomeAssistant;
-  public config?: NormalizedMoistureGaugeCardConfig;
+  public config?: NormalizedHorizontalGaugeCardConfig;
   private _holdTimer?: number;
   private _tapTimer?: number;
   private _holdTriggered = false;
@@ -213,15 +232,15 @@ export class MoistureGaugeCard extends LitElement {
     return cachedConfigForm;
   }
 
-  public static getConfigElement(): MoistureGaugeCardEditor {
-    return document.createElement(EDITOR_TAG) as MoistureGaugeCardEditor;
+  public static getConfigElement(): HorizontalGaugeCardEditor {
+    return document.createElement(EDITOR_TAG) as HorizontalGaugeCardEditor;
   }
 
   public static getStubConfig(
     hass: HomeAssistant,
     entities: string[] = [],
     entitiesFallback: string[] = [],
-  ): Omit<MoistureGaugeCardConfig, "type"> {
+  ): Omit<HorizontalGaugeCardConfig, "type"> {
     const candidates = [
       ...new Set([
         ...entities,
@@ -229,17 +248,13 @@ export class MoistureGaugeCard extends LitElement {
         ...Object.keys(hass.states),
       ]),
     ].filter((entityId) => entityId.startsWith("sensor."));
-    const moistureEntity = candidates.find(
-      (entityId) =>
-        hass.states[entityId]?.attributes.device_class === "moisture",
-    );
     const numericEntity = candidates.find(
       (entityId) => parseNumericState(hass.states[entityId]) !== null,
     );
-    return { entity: moistureEntity ?? numericEntity ?? candidates[0] ?? "" };
+    return { entity: numericEntity ?? candidates[0] ?? "" };
   }
 
-  public setConfig(config: MoistureGaugeCardConfig): void {
+  public setConfig(config: HorizontalGaugeCardConfig): void {
     this.config = normalizeConfig(config);
   }
 
@@ -438,7 +453,7 @@ export class MoistureGaugeCard extends LitElement {
         </div>
         <div class="instrument-lower">
           <h2 class="card-title">${name}</h2>
-          ${this._renderMoistureLamp(zone)}
+          ${this._renderStatusLamp(zone)}
           <div class="readout">
             <span class="gauge-value">${display.value}</span>
             ${
@@ -512,14 +527,13 @@ export class MoistureGaugeCard extends LitElement {
     `;
   }
 
-  private _renderMoistureLamp(zone: string) {
-    return html`<div class="moisture-lamp ${zone}" aria-hidden="true">
-      <svg class="moisture-lamp-icon" viewBox="0 0 24 24">
-        <path
-          d="M12 2.5C9.8 6 5.5 10.4 5.5 15a6.5 6.5 0 0 0 13 0C18.5 10.4 14.2 6 12 2.5Z"
-        ></path>
-      </svg>
-      <span>Moisture</span>
+  private _renderStatusLamp(zone: string) {
+    const lamp = this.config!.lamp;
+    const label =
+      zone === "warning" || zone === "critical" ? lamp.alert_label : lamp.label;
+    return html`<div class="status-lamp ${zone}" aria-hidden="true">
+      <ha-icon class="status-lamp-icon" .icon=${lamp.icon}></ha-icon>
+      ${label ? html`<span>${label}</span>` : nothing}
     </div>`;
   }
 
@@ -718,11 +732,10 @@ export class MoistureGaugeCard extends LitElement {
       height: var(--gauge-height);
       margin-inline: auto;
       overflow: hidden;
-      border: 3px solid
-        var(--moisture-gauge-bezel-color, rgba(160, 164, 166, 0.9));
+      border: 3px solid var(--gauge-bezel-color, rgba(160, 164, 166, 0.9));
       border-radius: 14px;
       background: var(
-        --moisture-gauge-panel-color,
+        --gauge-panel-color,
         var(--secondary-background-color, #d8d4c8)
       );
       box-shadow:
@@ -733,7 +746,7 @@ export class MoistureGaugeCard extends LitElement {
     .scale-face {
       margin: 7px 7px 0;
       overflow: hidden;
-      background: var(--moisture-gauge-face-color, #17191b);
+      background: var(--gauge-face-color, #17191b);
       clip-path: polygon(2.5% 0, 97.5% 0, 100% 100%, 0 100%);
     }
 
@@ -774,7 +787,7 @@ export class MoistureGaugeCard extends LitElement {
     }
 
     .gauge-track {
-      stroke: var(--moisture-gauge-dial-color, #f2f0e8);
+      stroke: var(--gauge-dial-color, #f2f0e8);
       opacity: 0.42;
     }
 
@@ -807,7 +820,7 @@ export class MoistureGaugeCard extends LitElement {
     }
 
     .gauge-tick {
-      stroke: var(--moisture-gauge-dial-color, #f2f0e8);
+      stroke: var(--gauge-dial-color, #f2f0e8);
     }
 
     .gauge-tick.major {
@@ -820,7 +833,7 @@ export class MoistureGaugeCard extends LitElement {
     }
 
     .scale-number {
-      fill: var(--moisture-gauge-dial-color, #f2f0e8);
+      fill: var(--gauge-dial-color, #f2f0e8);
       font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
       font-size: 21px;
       font-weight: 700;
@@ -846,18 +859,18 @@ export class MoistureGaugeCard extends LitElement {
         opacity 200ms ease-out;
     }
 
-    .moisture-lamp {
-      --moisture-lamp-color: var(--secondary-text-color, #727272);
+    .status-lamp {
+      --status-lamp-color: var(--secondary-text-color, #727272);
       display: flex;
       min-height: 30px;
       box-sizing: border-box;
       align-items: center;
       gap: 4px;
       padding: 3px 7px;
-      border: 1px solid var(--moisture-lamp-color);
+      border: 1px solid var(--status-lamp-color);
       border-radius: 3px;
-      background: var(--moisture-gauge-readout-color, #17191b);
-      color: var(--moisture-lamp-color);
+      background: var(--gauge-readout-color, #17191b);
+      color: var(--status-lamp-color);
       font-family: "Roboto Condensed", "Arial Narrow", sans-serif;
       font-size: 9px;
       font-weight: 700;
@@ -872,30 +885,28 @@ export class MoistureGaugeCard extends LitElement {
         opacity 200ms ease-out;
     }
 
-    .moisture-lamp.warning {
-      --moisture-lamp-color: var(--warning-color, #ffa600);
+    .status-lamp.warning {
+      --status-lamp-color: var(--warning-color, #ffa600);
       box-shadow:
-        0 0 7px color-mix(in srgb, var(--moisture-lamp-color), transparent 35%),
+        0 0 7px color-mix(in srgb, var(--status-lamp-color), transparent 35%),
         inset 0 0 5px
-          color-mix(in srgb, var(--moisture-lamp-color), transparent 70%);
+          color-mix(in srgb, var(--status-lamp-color), transparent 70%);
       opacity: 1;
     }
 
-    .moisture-lamp.critical {
-      --moisture-lamp-color: var(--error-color, #db4437);
+    .status-lamp.critical {
+      --status-lamp-color: var(--error-color, #db4437);
       box-shadow:
-        0 0 8px color-mix(in srgb, var(--moisture-lamp-color), transparent 25%),
+        0 0 8px color-mix(in srgb, var(--status-lamp-color), transparent 25%),
         inset 0 0 5px
-          color-mix(in srgb, var(--moisture-lamp-color), transparent 65%);
+          color-mix(in srgb, var(--status-lamp-color), transparent 65%);
       opacity: 1;
     }
 
-    .moisture-lamp-icon {
+    .status-lamp-icon {
+      --mdc-icon-size: 14px;
       display: block;
-      width: 14px;
-      height: 14px;
       flex: 0 0 auto;
-      fill: currentColor;
     }
 
     .gauge-indicator.unavailable,
@@ -914,9 +925,9 @@ export class MoistureGaugeCard extends LitElement {
       padding: 3px 9px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 3px;
-      background: var(--moisture-gauge-readout-color, #17191b);
+      background: var(--gauge-readout-color, #17191b);
       box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.75);
-      color: var(--moisture-gauge-dial-color, #f2f0e8);
+      color: var(--gauge-dial-color, #f2f0e8);
       font-variant-numeric: tabular-nums;
     }
 
@@ -945,21 +956,21 @@ export class MoistureGaugeCard extends LitElement {
       .gauge-progress,
       .gauge-indicator,
       .gauge-pointer,
-      .moisture-lamp {
+      .status-lamp {
         transition: none;
       }
     }
   `;
 }
 
-export class MoistureGaugeCardEditor extends LitElement {
+export class HorizontalGaugeCardEditor extends LitElement {
   static override properties = {
     hass: { attribute: false },
     _config: { state: true },
   };
 
   public hass?: HomeAssistant;
-  private _config?: MoistureGaugeCardConfig;
+  private _config?: HorizontalGaugeCardConfig;
   private _configChangedTimer?: number;
 
   public override connectedCallback(): void {
@@ -971,7 +982,7 @@ export class MoistureGaugeCardEditor extends LitElement {
     }
   }
 
-  public setConfig(config: MoistureGaugeCardConfig): void {
+  public setConfig(config: HorizontalGaugeCardConfig): void {
     this._clearConfigChangedTimer();
     this._config = config;
   }
@@ -985,7 +996,7 @@ export class MoistureGaugeCardEditor extends LitElement {
     if (!this.hass || !this._config) return nothing;
 
     const { schema, computeLabel, computeHelper } =
-      MoistureGaugeCard.getConfigForm();
+      HorizontalGaugeCard.getConfigForm();
 
     return html`
       <ha-form
@@ -1000,7 +1011,7 @@ export class MoistureGaugeCardEditor extends LitElement {
   }
 
   private _onValueChanged(
-    event: CustomEvent<{ value: MoistureGaugeCardConfig }>,
+    event: CustomEvent<{ value: HorizontalGaugeCardConfig }>,
   ): void {
     this._config = event.detail.value;
     this._clearConfigChangedTimer();
@@ -1025,26 +1036,26 @@ export class MoistureGaugeCardEditor extends LitElement {
 }
 
 if (!customElements.get(CARD_TAG)) {
-  customElements.define(CARD_TAG, MoistureGaugeCard);
+  customElements.define(CARD_TAG, HorizontalGaugeCard);
 }
 
 if (!customElements.get(EDITOR_TAG)) {
-  customElements.define(EDITOR_TAG, MoistureGaugeCardEditor);
+  customElements.define(EDITOR_TAG, HorizontalGaugeCardEditor);
 }
 
 window.customCards = window.customCards ?? [];
 if (!window.customCards.some((card) => card.type === CARD_TAG)) {
   window.customCards.push({
     type: CARD_TAG,
-    name: "Moisture Gauge Card",
-    description: "A horizontal, vintage-inspired soil-moisture gauge",
+    name: "Horizontal Gauge Card",
+    description: "A responsive, theme-aware horizontal gauge",
     preview: true,
     documentationURL: "https://github.com/bardagi/ha-horizontal-gauge",
     getEntitySuggestion: (hass, entityId) => {
       const state = hass.states[entityId];
       if (
         !entityId.startsWith("sensor.") ||
-        state?.attributes.device_class !== "moisture"
+        parseNumericState(state) === null
       ) {
         return null;
       }

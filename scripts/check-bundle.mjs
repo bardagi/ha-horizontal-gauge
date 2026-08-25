@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-const bundlePath = new URL("../dist/moisture-gauge-card.js", import.meta.url);
+const bundlePath = new URL("../dist/horizontal-gauge-card.js", import.meta.url);
 const bundle = readFileSync(bundlePath, "utf8");
 const remoteImport =
   /(?:import|export)\s+(?:[\s\S]*?\sfrom\s*)?["']https?:\/\//u.test(bundle) ||
@@ -12,9 +12,9 @@ if (remoteImport) {
 
 if (
   !bundle.includes("customElements.define") ||
-  !bundle.includes("moisture-gauge-card")
+  !bundle.includes("horizontal-gauge-card")
 ) {
-  throw new Error("Production bundle does not register moisture-gauge-card");
+  throw new Error("Production bundle does not register horizontal-gauge-card");
 }
 
-console.log("Bundle is self-contained and registers moisture-gauge-card.");
+console.log("Bundle is self-contained and registers horizontal-gauge-card.");

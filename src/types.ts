@@ -25,8 +25,14 @@ export interface OptimalRange {
 
 export type GaugeLayout = "compact" | "simple" | "volvo";
 
-export interface MoistureGaugeCardConfig extends LovelaceCardConfig {
-  type: "custom:moisture-gauge-card";
+export interface LampConfig {
+  icon: string;
+  label: string;
+  alert_label: string;
+}
+
+export interface HorizontalGaugeCardConfig extends LovelaceCardConfig {
+  type: "custom:horizontal-gauge-card";
   entity: string;
   layout?: GaugeLayout;
   name?: string;
@@ -35,17 +41,19 @@ export interface MoistureGaugeCardConfig extends LovelaceCardConfig {
   max?: number;
   optimal?: Partial<OptimalRange>;
   buffer?: number;
+  lamp?: Partial<LampConfig>;
   tap_action?: ActionConfig;
   hold_action?: ActionConfig;
   double_tap_action?: ActionConfig;
 }
 
-export interface NormalizedMoistureGaugeCardConfig extends MoistureGaugeCardConfig {
+export interface NormalizedHorizontalGaugeCardConfig extends HorizontalGaugeCardConfig {
   layout: GaugeLayout;
   min: number;
   max: number;
   optimal: OptimalRange;
   buffer: number;
+  lamp: LampConfig;
   tap_action: ActionConfig;
   hold_action: ActionConfig;
   double_tap_action: ActionConfig;

@@ -1,7 +1,7 @@
 import type {
   HassState,
   HomeAssistant,
-  NormalizedMoistureGaugeCardConfig,
+  NormalizedHorizontalGaugeCardConfig,
 } from "./types";
 
 export interface DisplayParts {
@@ -35,7 +35,7 @@ export function resolveDisplayParts(
   hass: HomeAssistant,
   state: HassState | undefined,
   value: number | null,
-  config: NormalizedMoistureGaugeCardConfig,
+  config: NormalizedHorizontalGaugeCardConfig,
 ): DisplayParts {
   const attributeUnit =
     typeof state?.attributes.unit_of_measurement === "string"
@@ -73,7 +73,7 @@ export function resolveDisplayParts(
 export function resolveName(
   hass: HomeAssistant,
   state: HassState | undefined,
-  config: NormalizedMoistureGaugeCardConfig,
+  config: NormalizedHorizontalGaugeCardConfig,
 ): string {
   if (config.name !== undefined) return config.name;
   if (!state) return config.entity;

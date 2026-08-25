@@ -6,11 +6,11 @@ import {
   resolveDisplayParts,
   resolveName,
 } from "../src/state";
-import type { HomeAssistant, MoistureGaugeCardConfig } from "../src/types";
+import type { HomeAssistant, HorizontalGaugeCardConfig } from "../src/types";
 
 function state(value: string, attributes: Record<string, unknown> = {}) {
   return {
-    entity_id: "sensor.plant_moisture",
+    entity_id: "sensor.test_sensor",
     state: value,
     attributes,
     context: { id: "context", parent_id: null, user_id: null },
@@ -34,9 +34,9 @@ function hassStub() {
   } as unknown as HomeAssistant;
 }
 
-const baseConfig: MoistureGaugeCardConfig = {
-  type: "custom:moisture-gauge-card",
-  entity: "sensor.plant_moisture",
+const baseConfig: HorizontalGaugeCardConfig = {
+  type: "custom:horizontal-gauge-card",
+  entity: "sensor.test_sensor",
 };
 
 describe("sensor state handling", () => {

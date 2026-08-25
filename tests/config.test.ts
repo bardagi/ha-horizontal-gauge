@@ -2,16 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_BUFFER,
+  DEFAULT_LAMP,
   DEFAULT_MAX,
   DEFAULT_MIN,
   DEFAULT_OPTIMAL,
   normalizeConfig,
 } from "../src/config";
-import type { MoistureGaugeCardConfig } from "../src/types";
+import type { HorizontalGaugeCardConfig } from "../src/types";
 
-const baseConfig: MoistureGaugeCardConfig = {
-  type: "custom:moisture-gauge-card",
-  entity: "sensor.plant_moisture",
+const baseConfig: HorizontalGaugeCardConfig = {
+  type: "custom:horizontal-gauge-card",
+  entity: "sensor.test_sensor",
 };
 
 describe("normalizeConfig", () => {
@@ -22,6 +23,7 @@ describe("normalizeConfig", () => {
     expect(config.max).toBe(DEFAULT_MAX);
     expect(config.optimal).toEqual(DEFAULT_OPTIMAL);
     expect(config.buffer).toBe(DEFAULT_BUFFER);
+    expect(config.lamp).toEqual(DEFAULT_LAMP);
     expect(config.layout).toBe("simple");
     expect(config.tap_action).toEqual({ action: "more-info" });
     expect(config.hold_action).toEqual({ action: "none" });
@@ -37,6 +39,15 @@ describe("normalizeConfig", () => {
     ).toEqual({ min: 40, max: 65 });
   });
 
+  it("deep-fills a partial lamp config", () => {
+    expect(
+      normalizeConfig({ ...baseConfig, lamp: { icon: "mdi:water" } }).lamp,
+    ).toEqual({ icon: "mdi:water", label: "", alert_label: "" });
+    expect(
+      normalizeConfig({ ...baseConfig, lamp: { label: "OK" } }).lamp,
+    ).toEqual({ icon: "mdi:circle", label: "OK", alert_label: "" });
+  });
+
   it.each([
     [{ ...baseConfig, entity: "" }, "Specify a sensor entity"],
     [{ ...baseConfig, min: Number.NaN }, "min must be a finite number"],
@@ -50,8 +61,10 @@ describe("normalizeConfig", () => {
       { ...baseConfig, buffer: -1 },
       "buffer must be greater than or equal to zero",
     ],
+    [{ ...baseConfig, lamp: "bright" }, "lamp must be an object"],
+    [{ ...baseConfig, lamp: { icon: 5 } }, "lamp.icon must be a string"],
   ])("rejects invalid configuration", (config, message) => {
-    expect(() => normalizeConfig(config as MoistureGaugeCardConfig)).toThrow(
+    expect(() => normalizeConfig(config as HorizontalGaugeCardConfig)).toThrow(
       message,
     );
   });

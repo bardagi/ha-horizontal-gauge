@@ -1,7 +1,7 @@
 {
-  "name": "moisture-gauge-card",
+  "name": "horizontal-gauge-card",
   "version": "0.1.0",
-  "description": "A responsive soil-moisture gauge card for Home Assistant",
+  "description": "A responsive horizontal gauge card for Home Assistant",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -12,14 +12,14 @@
     "home-assistant",
     "hacs",
     "lovelace",
-    "moisture",
+    "gauge",
     "custom-card"
   ],
   "engines": {
     "node": ">=24"
   },
   "files": [
-    "dist/moisture-gauge-card.js",
+    "dist/horizontal-gauge-card.js",
     "hacs.json",
     "LICENSE",
     "README.md"

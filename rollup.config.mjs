@@ -9,12 +9,12 @@ const packageJson = JSON.parse(
 );
 
 export default {
-  input: "src/moisture-gauge-card.ts",
+  input: "src/horizontal-gauge-card.ts",
   output: {
-    file: "dist/moisture-gauge-card.js",
+    file: "dist/horizontal-gauge-card.js",
     format: "es",
     sourcemap: false,
-    banner: `/* Moisture Gauge Card v${packageJson.version} | MIT */`,
+    banner: `/* Horizontal Gauge Card v${packageJson.version} | MIT */`,
   },
   plugins: [
     nodeResolve({ browser: true }),
