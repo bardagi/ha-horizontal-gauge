@@ -1,0 +1,37 @@
+repos:
+  - repo: local
+    hooks:
+      - id: format
+        name: format (oxfmt)
+        entry: npm run format --silent
+        language: system
+        pass_filenames: false
+        files: \.(ts|js|mjs|cjs|json)$
+
+      - id: lint
+        name: lint (oxlint)
+        entry: npx oxlint --fix .
+        language: system
+        pass_filenames: false
+        files: \.(ts|js|mjs|cjs)$
+
+      - id: typecheck
+        name: typecheck (tsc)
+        entry: npm run typecheck --silent
+        language: system
+        pass_filenames: false
+        files: \.ts$
+
+      - id: test
+        name: test (vitest)
+        entry: npm test --silent
+        language: system
+        pass_filenames: false
+        files: \.(ts|js|mjs|cjs)$
+
+      - id: build
+        name: build (rollup)
+        entry: npm run build --silent
+        language: system
+        pass_filenames: false
+        files: ^(src/|rollup\.config\.mjs|tsconfig\.json|package\.json)
