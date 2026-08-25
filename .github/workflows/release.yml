@@ -41,3 +41,4 @@ jobs:
         with:
           files: dist/horizontal-gauge-card.js
           fail_on_unmatched_files: true
+          generate_release_notes: true
