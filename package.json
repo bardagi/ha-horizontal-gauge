@@ -34,7 +34,8 @@
     "bundle": "npm run clean && rollup --config",
     "bundle:check": "node scripts/check-bundle.mjs",
     "build": "npm run bundle && npm run bundle:check",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run build",
+    "version": "npm run build && git add dist/horizontal-gauge-card.js"
   },
   "dependencies": {
     "custom-card-helpers": "2.0.0",

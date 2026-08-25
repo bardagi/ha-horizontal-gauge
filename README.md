@@ -171,6 +171,17 @@ Source lives in `src/`; the HACS and release artifact is `dist/horizontal-gauge-
 
 Note: `images/screenshot.png` still shows the card under its previous "Moisture Gauge Card" branding and has not been regenerated as part of this rename.
 
+### Releasing
+
+Versioning follows [semver](https://semver.org) and the `package.json` `version` field is the source of truth; it's baked into the built bundle's banner comment and must match the git tag.
+
+```bash
+npm version patch   # or minor / major
+git push --follow-tags
+```
+
+`npm version` bumps `package.json`/`package-lock.json`, rebuilds `dist/horizontal-gauge-card.js` so its banner matches, and commits both along with a `vX.Y.Z` tag. Pushing the tag triggers the [release workflow](.github/workflows/release.yml), which refuses to publish if the tag and `package.json` version disagree, then attaches the built bundle to a GitHub Release.
+
 ## License
 
 [MIT](LICENSE)
